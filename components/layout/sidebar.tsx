@@ -13,6 +13,7 @@ import {
   Settings,
   LifeBuoy,
   LogOut,
+  Fuel,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +23,7 @@ const navItems = [
   { href: "/drivers", label: "Drivers", icon: Users },
   { href: "/live-map", label: "Live Map", icon: MapPin },
   { href: "/maintenance", label: "Maintenance", icon: Wrench },
+  { href: "/fuel-expenses", label: "Fuel & Expenses", icon: Fuel },
   { href: "/reports", label: "Reports", icon: BarChart3 },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
