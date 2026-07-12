@@ -17,6 +17,20 @@ export default withAuth(
     const token = req.nextauth.token;
     const path = req.nextUrl.pathname;
 
+    if (path.startsWith("/api/auth")) {
+      return NextResponse.next();
+    }
+
+    if (path.startsWith("/api")) {
+      if (!token) {
+        return new NextResponse(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return NextResponse.next();
+    }
+
     if (!token) {
       return NextResponse.redirect(new URL("/login", req.url));
     }
@@ -32,7 +46,11 @@ export default withAuth(
   },
   {
     callbacks: {
-      authorized: ({ token }) => !!token,
+      authorized: ({ token, req }) => {
+        const path = req.nextUrl.pathname;
+        if (path.startsWith("/api/auth")) return true;
+        return !!token;
+      },
     },
     pages: { signIn: "/login" },
   }
@@ -48,5 +66,6 @@ export const config = {
     "/reports/:path*",
     "/live-map/:path*",
     "/settings/:path*",
+    "/api/:path*",
   ],
 };
