@@ -4,14 +4,19 @@ import { motion } from "framer-motion";
 import { Wrench, Clock, TrendingDown, HeartPulse } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const kpis = [
-  { label: "Total Expenses (MTD)", value: "$12,480.00", icon: Wrench, tone: "default" },
-  { label: "Upcoming Inspections", value: "8", icon: Clock, tone: "default" },
-  { label: "Avg. Downtime", value: "14.2 hrs", icon: TrendingDown, tone: "default" },
-  { label: "Fleet Health", value: "94.2%", icon: HeartPulse, tone: "highlight" },
-];
+interface Props {
+  totalCost?: number;
+  activeCount?: number;
+}
 
-export default function KpiCards() {
+export default function KpiCards({ totalCost = 0, activeCount = 0 }: Props) {
+  const kpis = [
+    { label: "Total Expenses (MTD)", value: `$${totalCost.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, icon: Wrench, tone: "default" as const },
+    { label: "Active in Service", value: String(activeCount), icon: Clock, tone: "default" as const },
+    { label: "Avg. Downtime", value: "14.2 hrs", icon: TrendingDown, tone: "default" as const },
+    { label: "Fleet Health", value: "94.2%", icon: HeartPulse, tone: "highlight" as const },
+  ];
+
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {kpis.map((kpi, i) => {

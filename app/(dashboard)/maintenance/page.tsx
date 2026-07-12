@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Download, Plus } from "lucide-react";
@@ -13,8 +13,38 @@ import CloseRecordModal from "@/components/maintenance/close-record-modal";
 import type { MaintenanceLog } from "@/lib/types";
 
 export default function MaintenancePage() {
+  const [logs, setLogs] = useState<MaintenanceLog[]>([]);
+  const [loading, setLoading] = useState(true);
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [closingLog, setClosingLog] = useState<MaintenanceLog | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/maintenance")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (!cancelled) setLogs(data);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const refreshLogs = useCallback(() => {
+    setLoading(true);
+    fetch("/api/maintenance")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setLogs(data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const activeCount = logs.filter((l) => l.isActive).length;
+  const totalCost = logs.reduce((sum, l) => sum + (l.cost || 0), 0);
 
   return (
     <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
@@ -23,7 +53,9 @@ export default function MaintenancePage() {
           <h1 className="text-xl font-semibold">Maintenance</h1>
           <p className="text-sm text-muted-foreground flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-amber-500 inline-block" />
-            4 Active services currently in progress
+            {loading && logs.length === 0
+              ? "Loading..."
+              : `${activeCount} Active service${activeCount !== 1 ? "s" : ""} currently in progress`}
           </p>
         </div>
         <div className="flex gap-2">
@@ -44,29 +76,33 @@ export default function MaintenancePage() {
         </div>
       </div>
 
-      <KpiCards />
+      <KpiCards totalCost={totalCost} activeCount={activeCount} />
 
       <div className="grid lg:grid-cols-[2fr_1fr] gap-6">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}>
-          <MaintenanceTable onRowClick={setClosingLog} />
+          <MaintenanceTable logs={logs} isLoading={loading} onRowClick={setClosingLog} />
         </motion.div>
 
         <div className="space-y-6">
-          <ServiceReminders />
-          <MaintenanceSpendChart />
+          <ServiceReminders logs={logs} />
+          <MaintenanceSpendChart logs={logs} />
         </div>
       </div>
 
       <NewRecordModal
         open={newModalOpen}
         onOpenChange={setNewModalOpen}
-        onCreate={() => {}}
+        onCreate={refreshLogs}
       />
 
       <CloseRecordModal
+        key={closingLog?.id ?? "closed"}
         log={closingLog}
         onOpenChange={(open) => !open && setClosingLog(null)}
-        onClose={() => setClosingLog(null)}
+        onClose={() => {
+          setClosingLog(null);
+          refreshLogs();
+        }}
       />
     </div>
   );

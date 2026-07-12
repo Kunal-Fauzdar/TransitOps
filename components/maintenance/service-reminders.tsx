@@ -1,45 +1,55 @@
 "use client";
 
-import { AlertTriangle, Wrench } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Wrench } from "lucide-react";
 import { motion } from "framer-motion";
+import type { MaintenanceLog } from "@/lib/types";
 
-const reminders = [
-  { type: "overdue", title: "Overdue: Annual Safety Inspection", subtitle: "Vehicle TX-1002 • Due 3 days ago", action: "Schedule" },
-  { type: "upcoming", title: "Upcoming: Preventative Maintenance", subtitle: "Vehicle CA-4001 • in 12 days", action: "Manage" },
-];
+function toNum(val: unknown): number {
+  if (typeof val === "number") return val;
+  if (val && typeof val === "object" && "toNumber" in val) return (val as { toNumber: () => number }).toNumber();
+  return 0;
+}
 
-export default function ServiceReminders() {
+interface Props {
+  logs: MaintenanceLog[];
+}
+
+export default function ServiceReminders({ logs }: Props) {
+  const activeLogs = logs.filter((l) => l.isActive);
+
+  if (activeLogs.length === 0) {
+    return (
+      <div className="rounded-xl border bg-white p-5">
+        <h3 className="font-semibold text-sm mb-4">Service Reminders</h3>
+        <p className="text-sm text-muted-foreground text-center py-4">No active services</p>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-xl border bg-white p-5">
-      <h3 className="font-semibold text-sm mb-4">Service Reminders</h3>
+      <h3 className="font-semibold text-sm mb-4">Active Services</h3>
       <div className="space-y-3">
-        {reminders.map((r, i) => (
+        {activeLogs.map((log, i) => (
           <motion.div
-            key={r.title}
+            key={log.id}
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: i * 0.08 }}
             className="flex items-center justify-between gap-3 rounded-lg border p-3 hover:bg-slate-50 transition-colors"
           >
             <div className="flex items-start gap-2.5">
-              {r.type === "overdue" ? (
-                <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5" />
-              ) : (
-                <Wrench className="h-4 w-4 text-blue-500 mt-0.5" />
-              )}
+              <Wrench className="h-4 w-4 text-amber-500 mt-0.5" />
               <div>
-                <p className="text-sm font-medium">{r.title}</p>
-                <p className="text-xs text-muted-foreground">{r.subtitle}</p>
+                <p className="text-sm font-medium">{log.type}</p>
+                <p className="text-xs text-muted-foreground">
+                  {log.vehicleReg ?? log.vehicleId} &bull; ${toNum(log.cost).toFixed(2)}
+                </p>
               </div>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              className="shrink-0 transition-transform active:scale-95 hover:border-blue-400 hover:text-blue-600"
-            >
-              {r.action}
-            </Button>
+            <span className="text-xs text-muted-foreground shrink-0">
+              {log.startDate}
+            </span>
           </motion.div>
         ))}
       </div>
