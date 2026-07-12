@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Select,
   SelectContent,
@@ -9,39 +10,43 @@ import {
 } from "@/components/ui/select";
 
 export default function DashboardFilters() {
+  const [type, setType] = useState("All Types");
+  const [status, setStatus] = useState("Active");
+  const [region, setRegion] = useState("North Metro");
+
   return (
     <div className="flex gap-2">
-      <Select defaultValue="all">
+      <Select value={type} onValueChange={(val) => setType(val || "All Types")}>
         <SelectTrigger className="w-[130px] h-8 text-xs">
-          <SelectValue placeholder="Vehicle type" />
+          <SelectValue>{type}</SelectValue>
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">Vehicle type: All</SelectItem>
-          <SelectItem value="bus">Bus</SelectItem>
-          <SelectItem value="truck">Truck</SelectItem>
-          <SelectItem value="van">Van</SelectItem>
+          <SelectItem value="All Types">All Types</SelectItem>
+          <SelectItem value="Bus">Bus</SelectItem>
+          <SelectItem value="Truck">Truck</SelectItem>
+          <SelectItem value="Van">Van</SelectItem>
         </SelectContent>
       </Select>
 
-      <Select defaultValue="active">
+      <Select value={status} onValueChange={(val) => setStatus(val || "Active")}>
         <SelectTrigger className="w-[120px] h-8 text-xs">
-          <SelectValue placeholder="Status" />
+          <SelectValue>{status}</SelectValue>
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="active">Status: Active</SelectItem>
-          <SelectItem value="idle">Status: Idle</SelectItem>
-          <SelectItem value="shop">Status: In Shop</SelectItem>
+          <SelectItem value="Active">Active</SelectItem>
+          <SelectItem value="Idle">Idle</SelectItem>
+          <SelectItem value="In Shop">In Shop</SelectItem>
         </SelectContent>
       </Select>
 
-      <Select defaultValue="north">
+      <Select value={region} onValueChange={(val) => setRegion(val || "North Metro")}>
         <SelectTrigger className="w-[150px] h-8 text-xs">
-          <SelectValue placeholder="Region" />
+          <SelectValue>{region}</SelectValue>
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="north">Region: North Metro</SelectItem>
-          <SelectItem value="south">Region: South Metro</SelectItem>
-          <SelectItem value="east">Region: East Zone</SelectItem>
+          <SelectItem value="North Metro">North Metro</SelectItem>
+          <SelectItem value="South Metro">South Metro</SelectItem>
+          <SelectItem value="East Zone">East Zone</SelectItem>
         </SelectContent>
       </Select>
     </div>
