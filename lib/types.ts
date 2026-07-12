@@ -70,3 +70,29 @@ export interface Expense {
   amount: number
   date: string // ISO date string
 }
+
+// NextAuth type augmentation
+declare module "next-auth" {
+  interface User {
+    id: string
+    name: string
+    email: string
+    role: UserRole
+  }
+  interface Session {
+    user: {
+      id: string
+      name: string
+      email: string
+      role: UserRole
+    }
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    id: string
+    role: UserRole
+  }
+}
+
