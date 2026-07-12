@@ -291,9 +291,55 @@ npx shadcn@latest add button input label select table tabs dialog sheet badge pr
 
 ### Run the development server
 
+---
+
+## 🔑 Demo Test Accounts
+
+The database contains seeded test accounts with distinct role-based access control. You **must select the matching role** in the login dropdown to authenticate successfully:
+
+| Email | Password | Role to Select | Dashboard Access Permissions |
+| :--- | :--- | :--- | :--- |
+| **`manager@transitops.com`** | `password123` | **Fleet Manager** | View All, Vehicles, Drivers, Trips, Maintenance, Reports |
+| **`driver@transitops.com`** | `password123` | **Driver** | View Dashboard, Vehicles, Trips, Live Map |
+| **`safety@transitops.com`** | `password123` | **Safety Officer** | View Dashboard, Drivers, Live Map |
+| **`analyst@transitops.com`** | `password123` | **Financial Analyst** | View Dashboard, Reports, Fuel & Expenses |
+
+---
+
+## 🚀 Getting Started
+
+### 1. Prerequisite Configuration
+Ensure your environment variables are configured in `.env.local` at the root of the project:
+```env
+NEO4J_URI=neo4j+s://your-instance.databases.neo4j.io
+NEO4J_USERNAME=neo4j
+NEO4J_PASSWORD=your-neo4j-password
+NEO4J_DATABASE=neo4j
+
+NEXTAUTH_SECRET=your-next-auth-secret
+NEXTAUTH_URL=http://localhost:3000
+```
+
+### 2. Seeding the Neo4j Database
+Initialize constraints, seed standard users, and generate mock operations logs (vehicles, drivers, fuel logs, and completed Pune/Mumbai trips) by running the scripts:
 ```bash
+# 1. Initialize DB constraints
+npx tsx scripts/init-db.ts
+
+# 2. Seed standard users and passwords
+npx tsx scripts/seed-users.ts
+
+# 3. Seed demo operational records and transactions
+npx tsx scripts/seed-demo.ts
+```
+
+### 3. Launching the App
+Install dependencies and run the development server:
+```bash
+npm install
 npm run dev
 ```
+Open **[http://localhost:3000](http://localhost:3000)** in your browser to log in and test.
 
 Open [http://localhost:3000](http://localhost:3000) after the app starts.
 
