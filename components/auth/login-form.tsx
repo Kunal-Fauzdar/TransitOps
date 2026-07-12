@@ -7,10 +7,25 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { Loader2, Mail, Lock, Eye, EyeOff, UserCircle } from "lucide-react";
+
+const ROLES = [
+  { value: "FleetManager", label: "Fleet Manager" },
+  { value: "Driver", label: "Driver" },
+  { value: "SafetyOfficer", label: "Safety Officer" },
+  { value: "FinancialAnalyst", label: "Financial Analyst" },
+];
 
 export default function LoginForm() {
   const router = useRouter();
+  const [role, setRole] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -30,6 +45,11 @@ export default function LoginForm() {
     e.preventDefault();
     setError("");
 
+    if (!role) {
+      setError("Please select your role before signing in.");
+      return;
+    }
+
     if (!email || !password) {
       setError("Please enter email and password.");
       return;
@@ -41,6 +61,7 @@ export default function LoginForm() {
       const res = await signIn("credentials", {
         email,
         password,
+        role,
         redirect: false,
       });
 
@@ -76,6 +97,25 @@ export default function LoginForm() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
+          <Label htmlFor="role">Role</Label>
+          <Select value={role} onValueChange={(value) => setRole(value || "")}>
+            <SelectTrigger id="role" className="w-full">
+              <div className="flex items-center gap-2">
+                <UserCircle className="h-4 w-4 text-muted-foreground" />
+                <SelectValue placeholder="Select your role" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              {ROLES.map((r) => (
+                <SelectItem key={r.value} value={r.value}>
+                  {r.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -92,9 +132,7 @@ export default function LoginForm() {
         </div>
 
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="password">Password</Label>
-          </div>
+          <Label htmlFor="password">Password</Label>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input

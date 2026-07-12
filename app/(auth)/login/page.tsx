@@ -13,7 +13,6 @@ export default function LoginPage() {
           <span className="text-xl font-semibold tracking-tight">TransitOps</span>
         </div>
 
-
         <div className="relative z-10 space-y-4">
           <h1 className="text-3xl font-bold leading-tight">
             Smart Transport Operations Platform
