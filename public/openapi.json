@@ -19,13 +19,14 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
+            "application/x-www-form-urlencoded": {
               "schema": {
                 "type": "object",
                 "properties": {
                   "email": { "type": "string", "format": "email", "example": "manager@transitops.com" },
                   "password": { "type": "string", "example": "password123" },
-                  "csrfToken": { "type": "string", "description": "CSRF token fetched from /api/auth/csrf" }
+                  "csrfToken": { "type": "string", "description": "CSRF token fetched from /api/auth/csrf" },
+                  "redirect": { "type": "boolean", "default": false, "example": false }
                 },
                 "required": ["email", "password", "csrfToken"]
               }
