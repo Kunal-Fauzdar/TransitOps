@@ -12,10 +12,10 @@
     }
   ],
   "paths": {
-    "/auth/signin": {
+    "/auth/callback/credentials": {
       "post": {
-        "summary": "Authenticate User",
-        "description": "Log in a user and obtain a session cookie/JWT via NextAuth.",
+        "summary": "Authenticate User (NextAuth Credentials)",
+        "description": "Performs authentication using credentials provider. Note: requires a valid csrfToken which can be fetched from /api/auth/csrf.",
         "requestBody": {
           "required": true,
           "content": {
@@ -23,17 +23,39 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "email": { "type": "string", "format": "email" },
-                  "password": { "type": "string" }
+                  "email": { "type": "string", "format": "email", "example": "manager@transitops.com" },
+                  "password": { "type": "string", "example": "password123" },
+                  "csrfToken": { "type": "string", "description": "CSRF token fetched from /api/auth/csrf" }
                 },
-                "required": ["email", "password"]
+                "required": ["email", "password", "csrfToken"]
               }
             }
           }
         },
         "responses": {
           "200": { "description": "Successfully authenticated" },
-          "401": { "description": "Invalid credentials" }
+          "401": { "description": "Invalid credentials or token" }
+        }
+      }
+    },
+    "/auth/csrf": {
+      "get": {
+        "summary": "Get NextAuth CSRF Token",
+        "description": "Fetches the current active CSRF token required for POST requests (like credentials sign-in).",
+        "responses": {
+          "200": {
+            "description": "CSRF Token object",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "csrfToken": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
