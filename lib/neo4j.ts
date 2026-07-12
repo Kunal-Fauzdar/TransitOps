@@ -16,5 +16,6 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 export function getSession() {
-  return driver.session({ database: process.env.NEO4J_DATABASE || 'neo4j' })
+  const database = process.env.NEO4J_DATABASE
+  return driver.session(database ? { database } : {})
 }

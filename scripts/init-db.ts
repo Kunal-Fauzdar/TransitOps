@@ -30,14 +30,14 @@ loadEnvLocal()
 const uri = process.env.NEO4J_URI || 'neo4j://localhost:7687'
 const user = process.env.NEO4J_USERNAME || 'neo4j'
 const password = process.env.NEO4J_PASSWORD || 'password'
-const database = process.env.NEO4J_DATABASE || 'neo4j'
+const database = process.env.NEO4J_DATABASE
 
-console.log(`Connecting to Neo4j at ${uri} (database: ${database})...`)
+console.log(`Connecting to Neo4j at ${uri} (database: ${database || 'default'})...`)
 
 const driver = neo4j.driver(uri, neo4j.auth.basic(user, password))
 
 async function runConstraints() {
-  const session = driver.session({ database })
+  const session = driver.session(database ? { database } : {})
   try {
     console.log('Creating constraints...')
 
