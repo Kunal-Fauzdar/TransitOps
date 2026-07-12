@@ -19,107 +19,219 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Vehicle } from "@/lib/types";
+import type { Vehicle, VehicleStatus } from "@/lib/types";
 
-const ROUTES = ["North-South Express", "City Loop B", "Airport Shuttle", "North-South Route", "Unassigned"];
+const VEHICLE_TYPES = [
+  "Heavy Truck",
+  "Cargo Van",
+  "Bus",
+  "Articulated Bus",
+  "Light Commercial",
+];
+
+const REGIONS = [
+  "North-South Express",
+  "City Loop B",
+  "Airport Shuttle",
+  "North-South Route",
+  "Unassigned",
+];
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (vehicle: Vehicle) => void;
-  existingRegNumbers: string[];
+  onCreated: (vehicle: Vehicle) => void;
 }
 
-export default function AddVehicleModal({ open, onOpenChange, onSubmit, existingRegNumbers }: Props) {
-  const [model, setModel] = useState("");
-  const [year, setYear] = useState("");
-  const [plate, setPlate] = useState("");
-  const [vin, setVin] = useState("");
-  const [route, setRoute] = useState("");
+export default function AddVehicleModal({
+  open,
+  onOpenChange,
+  onCreated,
+}: Props) {
+  const [regNumber, setRegNumber] = useState("");
+  const [name, setName] = useState("");
+  const [type, setType] = useState("");
+  const [maxLoadCapacity, setMaxLoadCapacity] = useState("");
+  const [odometer, setOdometer] = useState("");
+  const [acquisitionCost, setAcquisitionCost] = useState("");
+  const [region, setRegion] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const reset = () => {
-    setModel(""); setYear(""); setPlate(""); setVin(""); setRoute(""); setError("");
+    setRegNumber("");
+    setName("");
+    setType("");
+    setMaxLoadCapacity("");
+    setOdometer("");
+    setAcquisitionCost("");
+    setRegion("");
+    setError("");
   };
 
   const handleSubmit = async () => {
-    if (!model || !plate) {
-      setError("Model and License Plate are required.");
-      return;
-    }
-    if (existingRegNumbers.includes(plate)) {
-      setError("A vehicle with this plate already exists.");
+    setError("");
+
+    if (!regNumber.trim() || !name.trim() || !type) {
+      setError("Registration number, name, and type are required.");
       return;
     }
 
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 500));
-    setLoading(false);
+    try {
+      const res = await fetch("/api/vehicles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          regNumber: regNumber.trim(),
+          name: name.trim(),
+          type,
+          maxLoadCapacity: Number(maxLoadCapacity) || 1,
+          odometer: Number(odometer) || 0,
+          acquisitionCost: Number(acquisitionCost) || 1,
+          status: "Available" as VehicleStatus,
+          region: region || "Unassigned",
+        }),
+      });
 
-    onSubmit({
-      regNumber: plate,
-      name: model,
-      type: "Bus",
-      maxLoadCapacity: 0,
-      odometer: 0,
-      acquisitionCost: 0,
-      status: "Available",
-      region: route || "Unassigned",
-    });
-    reset();
-    onOpenChange(false);
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Failed to create vehicle");
+        return;
+      }
+
+      onCreated(data);
+      reset();
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) reset(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        onOpenChange(o);
+        if (!o) reset();
+      }}
+    >
       <DialogContent className="sm:max-w-md">
-        <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.18 }}>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.18 }}
+        >
           <DialogHeader>
-            <DialogTitle>Add vehicle</DialogTitle>
+            <DialogTitle>Add Vehicle</DialogTitle>
           </DialogHeader>
+
+          {error && (
+            <div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+              {error}
+            </div>
+          )}
 
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label>Model</Label>
-              <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="e.g. Mercedes-Benz Citaro" />
+              <Label>Registration Number</Label>
+              <Input
+                value={regNumber}
+                onChange={(e) => setRegNumber(e.target.value)}
+                placeholder="e.g. TRK-1234"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Name / Model</Label>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Scania R500"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Year</Label>
-                <Input value={year} onChange={(e) => setYear(e.target.value)} placeholder="2024" />
+                <Label>Vehicle Type</Label>
+                <Select value={type} onValueChange={(v) => setType(v ?? "")}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {VEHICLE_TYPES.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {t}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>License Plate</Label>
-                <Input value={plate} onChange={(e) => setPlate(e.target.value)} placeholder="ABC-1234" />
+                <Label>Region</Label>
+                <Select value={region} onValueChange={(v) => setRegion(v ?? "")}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select region..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {REGIONS.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {r}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Max Load Capacity (kg)</Label>
+                <Input
+                  type="number"
+                  value={maxLoadCapacity}
+                  onChange={(e) => setMaxLoadCapacity(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Odometer (km)</Label>
+                <Input
+                  type="number"
+                  value={odometer}
+                  onChange={(e) => setOdometer(e.target.value)}
+                  placeholder="0"
+                />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label>VIN</Label>
-              <Input value={vin} onChange={(e) => setVin(e.target.value)} placeholder="17-digit vehicle identification number" />
+              <Label>Acquisition Cost ($)</Label>
+              <Input
+                type="number"
+                value={acquisitionCost}
+                onChange={(e) => setAcquisitionCost(e.target.value)}
+                placeholder="0"
+              />
             </div>
-
-            <div className="space-y-1.5">
-              <Label>Primary Route</Label>
-              <Select value={route} onValueChange={(value) => setRoute(value ?? "")}>
-                <SelectTrigger><SelectValue placeholder="Select a route" /></SelectTrigger>
-                <SelectContent>
-                  {ROUTES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {error && <p className="text-sm text-red-500">{error}</p>}
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => onOpenChange(false)} className="transition-transform active:scale-95">
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="transition-transform active:scale-95"
+            >
               Cancel
             </Button>
-            <Button onClick={handleSubmit} disabled={loading} className="transition-all active:scale-95 hover:shadow-md">
-              {loading ? "Adding..." : "Add vehicle"}
+            <Button
+              onClick={handleSubmit}
+              disabled={loading || !regNumber.trim() || !name.trim() || !type}
+              className="transition-all active:scale-95 hover:shadow-md"
+            >
+              {loading ? "Adding..." : "Add Vehicle"}
             </Button>
           </DialogFooter>
         </motion.div>

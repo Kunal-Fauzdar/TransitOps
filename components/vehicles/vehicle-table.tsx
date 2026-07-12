@@ -15,15 +15,16 @@ import type { Vehicle } from "@/lib/types";
 
 interface Props {
   vehicles: Vehicle[];
+  isLoading: boolean;
   onRowClick: (vehicle: Vehicle) => void;
 }
 
-export default function VehicleTable({ vehicles, onRowClick }: Props) {
+export default function VehicleTable({ vehicles, isLoading, onRowClick }: Props) {
   return (
-    <div className="rounded-lg border bg-card">
+    <div className="rounded-lg border bg-card overflow-hidden">
       <Table>
         <TableHeader>
-          <TableRow>
+          <TableRow className="bg-slate-50">
             <TableHead>Reg. Number</TableHead>
             <TableHead>Name/Model</TableHead>
             <TableHead>Type</TableHead>
@@ -36,40 +37,81 @@ export default function VehicleTable({ vehicles, onRowClick }: Props) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {vehicles.map((vehicle) => (
-            <TableRow
-              key={vehicle.regNumber}
-              className="cursor-pointer hover:bg-muted/50"
-              onClick={() => onRowClick(vehicle)}
-            >
-              <TableCell className="font-medium">{vehicle.regNumber}</TableCell>
-              <TableCell>{vehicle.name}</TableCell>
-              <TableCell>{vehicle.type}</TableCell>
-              <TableCell>{vehicle.region}</TableCell>
-              <TableCell className="text-right">{vehicle.maxLoadCapacity.toLocaleString()}</TableCell>
-              <TableCell className="text-right">{vehicle.odometer.toLocaleString()} km</TableCell>
-              <TableCell className="text-right">${vehicle.acquisitionCost.toLocaleString()}</TableCell>
-              <TableCell>
-                <VehicleStatusBadge status={vehicle.status} />
-              </TableCell>
-              <TableCell className="text-right">
-                <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onRowClick(vehicle)}>
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onRowClick(vehicle)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-          {vehicles.length === 0 && (
+          {isLoading ? (
+            Array.from({ length: 5 }).map((_, i) => (
+              <TableRow key={`skeleton-${i}`}>
+                {Array.from({ length: 9 }).map((_, j) => (
+                  <TableCell key={j}>
+                    <div className="h-4 bg-slate-100 rounded animate-pulse" />
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))
+          ) : vehicles.length === 0 ? (
             <TableRow>
               <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                 No vehicles found.
               </TableCell>
             </TableRow>
+          ) : (
+            vehicles.map((vehicle) => (
+              <TableRow
+                key={vehicle.regNumber}
+                className="cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => onRowClick(vehicle)}
+              >
+                <TableCell className="font-medium">{vehicle.regNumber}</TableCell>
+                <TableCell>{vehicle.name}</TableCell>
+                <TableCell>{vehicle.type}</TableCell>
+                <TableCell>{vehicle.region}</TableCell>
+                <TableCell className="text-right">
+                  {(typeof vehicle.maxLoadCapacity === "number"
+                    ? vehicle.maxLoadCapacity
+                    : 0
+                  ).toLocaleString()}
+                </TableCell>
+                <TableCell className="text-right">
+                  {(typeof vehicle.odometer === "number"
+                    ? vehicle.odometer
+                    : 0
+                  ).toLocaleString()}{" "}
+                  km
+                </TableCell>
+                <TableCell className="text-right">
+                  $
+                  {(typeof vehicle.acquisitionCost === "number"
+                    ? vehicle.acquisitionCost
+                    : 0
+                  ).toLocaleString()}
+                </TableCell>
+                <TableCell>
+                  <VehicleStatusBadge status={vehicle.status} />
+                </TableCell>
+                <TableCell className="text-right">
+                  <div
+                    className="flex justify-end gap-1"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => onRowClick(vehicle)}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => onRowClick(vehicle)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))
           )}
         </TableBody>
       </Table>

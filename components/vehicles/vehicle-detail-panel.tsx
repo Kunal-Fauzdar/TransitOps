@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -15,7 +14,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Vehicle, VehicleStatus } from "@/lib/types";
+import type { Vehicle, VehicleStatus, MaintenanceLog, Trip } from "@/lib/types";
+
+function toNum(val: unknown): number {
+  if (typeof val === "number") return val;
+  if (val && typeof val === "object" && "toNumber" in val)
+    return (val as { toNumber: () => number }).toNumber();
+  return 0;
+}
 
 const STATUSES: VehicleStatus[] = ["Available", "On Trip", "In Shop", "Retired"];
 
@@ -25,18 +31,75 @@ interface Props {
   onSave: (vehicle: Vehicle) => void;
 }
 
-const MOCK_MAINTENANCE = [
-  { date: "Nov 2, 2025", desc: "Brake pads replaced", cost: 420 },
-  { date: "Aug 14, 2025", desc: "Annual inspection", cost: 1200 },
-];
-
-const MOCK_TRIPS = [
-  { date: "Jun 1, 2026", route: "Chicago, IL → Houston, TX", status: "Completed" },
-  { date: "Apr 18, 2026", route: "Dallas, TX → Miami, FL", status: "Completed" },
-];
-
 export default function VehicleDetailPanel({ vehicle, onClose, onSave }: Props) {
   const [form, setForm] = useState<Vehicle | null>(vehicle);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
+  const [maintenanceLogs, setMaintenanceLogs] = useState<MaintenanceLog[]>([]);
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!vehicle) return;
+    Promise.all([
+      fetch("/api/maintenance").then((r) => (r.ok ? r.json() : [])),
+      fetch("/api/trips").then((r) => (r.ok ? r.json() : [])),
+    ])
+      .then(([maintData, tripData]) => {
+        if (Array.isArray(maintData)) {
+          setMaintenanceLogs(
+            maintData.filter(
+              (l: MaintenanceLog) =>
+                l.vehicleReg === vehicle.regNumber ||
+                l.vehicleId === vehicle.regNumber
+            )
+          );
+        }
+        if (Array.isArray(tripData)) {
+          setTrips(
+            tripData.filter((t: Trip & { vehicleReg?: string }) =>
+              t.vehicleReg === vehicle.regNumber
+            )
+          );
+        }
+        setHistoryLoaded(true);
+      })
+      .catch(() => {
+        setHistoryLoaded(true);
+      });
+  }, [vehicle]);
+
+  const handleSave = async () => {
+    if (!form) return;
+    setSaving(true);
+    setSaveError("");
+    try {
+      const res = await fetch(`/api/vehicles/${encodeURIComponent(form.regNumber)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name,
+          type: form.type,
+          maxLoadCapacity: form.maxLoadCapacity,
+          odometer: form.odometer,
+          acquisitionCost: form.acquisitionCost,
+          status: form.status,
+          region: form.region,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSaveError(data.error || "Failed to save");
+        return;
+      }
+      onSave(data);
+    } catch {
+      setSaveError("Network error");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -50,31 +113,19 @@ export default function VehicleDetailPanel({ vehicle, onClose, onSave }: Props) 
         >
           <div className="flex items-center justify-between px-5 h-14 border-b">
             <h3 className="font-semibold text-sm">{form.regNumber}</h3>
-            <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+            <button
+              onClick={onClose}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
               <X className="h-4 w-4" />
             </button>
           </div>
 
           <Tabs defaultValue="details" className="flex-1 flex flex-col overflow-hidden">
-            <TabsList className="mx-4 mt-3 grid w-auto grid-cols-3 gap-1 bg-slate-100 p-1 rounded-md">
-              <TabsTrigger
-                value="details"
-                className="text-xs px-2 py-1.5 whitespace-nowrap data-[state=active]:bg-white data-[state=active]:shadow-sm"
-              >
-                Details
-              </TabsTrigger>
-              <TabsTrigger
-                value="maintenance"
-                className="text-xs px-2 py-1.5 whitespace-nowrap data-[state=active]:bg-white data-[state=active]:shadow-sm"
-              >
-                Maintenance
-              </TabsTrigger>
-              <TabsTrigger
-                value="trips"
-                className="text-xs px-2 py-1.5 whitespace-nowrap data-[state=active]:bg-white data-[state=active]:shadow-sm"
-              >
-                Trip history
-              </TabsTrigger>
+            <TabsList className="grid grid-cols-3 mx-4 mt-3">
+              <TabsTrigger value="details">Details</TabsTrigger>
+              <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
+              <TabsTrigger value="trips">Trips</TabsTrigger>
             </TabsList>
 
             <TabsContent value="details" className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
@@ -85,10 +136,19 @@ export default function VehicleDetailPanel({ vehicle, onClose, onSave }: Props) 
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Status</Label>
-                  <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as VehicleStatus })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                  <Select
+                    value={form.status}
+                    onValueChange={(v) => setForm({ ...form, status: v as VehicleStatus })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
-                      {STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                      {STATUSES.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {s}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -96,29 +156,42 @@ export default function VehicleDetailPanel({ vehicle, onClose, onSave }: Props) 
 
               <div className="space-y-1.5">
                 <Label className="text-xs">Model / manufacturer</Label>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                <Input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Type</Label>
-                  <Input value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} />
+                  <Input
+                    value={form.type}
+                    onChange={(e) => setForm({ ...form, type: e.target.value })}
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Region</Label>
-                  <Input value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} />
+                  <Input
+                    value={form.region}
+                    onChange={(e) => setForm({ ...form, region: e.target.value })}
+                  />
                 </div>
               </div>
 
               <div className="pt-2">
-                <p className="text-xs font-semibold text-muted-foreground mb-2">DIMENSIONS & LOAD</p>
+                <p className="text-xs font-semibold text-muted-foreground mb-2">
+                  DIMENSIONS & LOAD
+                </p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Max load capacity (kg)</Label>
                     <Input
                       type="number"
                       value={form.maxLoadCapacity}
-                      onChange={(e) => setForm({ ...form, maxLoadCapacity: Number(e.target.value) })}
+                      onChange={(e) =>
+                        setForm({ ...form, maxLoadCapacity: Number(e.target.value) })
+                      }
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -126,7 +199,9 @@ export default function VehicleDetailPanel({ vehicle, onClose, onSave }: Props) 
                     <Input
                       type="number"
                       value={form.odometer}
-                      onChange={(e) => setForm({ ...form, odometer: Number(e.target.value) })}
+                      onChange={(e) =>
+                        setForm({ ...form, odometer: Number(e.target.value) })
+                      }
                     />
                   </div>
                 </div>
@@ -137,49 +212,86 @@ export default function VehicleDetailPanel({ vehicle, onClose, onSave }: Props) 
                 <Input
                   type="number"
                   value={form.acquisitionCost}
-                  onChange={(e) => setForm({ ...form, acquisitionCost: Number(e.target.value) })}
+                  onChange={(e) =>
+                    setForm({ ...form, acquisitionCost: Number(e.target.value) })
+                  }
                 />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs">Internal notes</Label>
-                <Textarea rows={3} placeholder="Scheduled for annual inspection in November..." />
               </div>
             </TabsContent>
 
             <TabsContent value="maintenance" className="flex-1 overflow-y-auto px-5 py-4 space-y-2">
-              {MOCK_MAINTENANCE.map((m, i) => (
-                <div key={i} className="rounded-md border p-3 flex justify-between items-center text-sm">
-                  <div>
-                    <p className="font-medium">{m.desc}</p>
-                    <p className="text-xs text-muted-foreground">{m.date}</p>
+              {!historyLoaded ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Loading...
+                </p>
+              ) : maintenanceLogs.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No maintenance records
+                </p>
+              ) : (
+                maintenanceLogs.map((m) => (
+                  <div
+                    key={m.id}
+                    className="rounded-md border p-3 flex justify-between items-center text-sm"
+                  >
+                    <div>
+                      <p className="font-medium">{m.type}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {m.startDate}
+                        {m.endDate ? ` — ${m.endDate}` : " (ongoing)"}
+                      </p>
+                    </div>
+                    <span className="font-medium">
+                      ${toNum(m.cost).toFixed(2)}
+                    </span>
                   </div>
-                  <span className="font-medium">${m.cost}</span>
-                </div>
-              ))}
+                ))
+              )}
             </TabsContent>
 
             <TabsContent value="trips" className="flex-1 overflow-y-auto px-5 py-4 space-y-2">
-              {MOCK_TRIPS.map((t, i) => (
-                <div key={i} className="rounded-md border p-3 text-sm">
-                  <p className="font-medium">{t.route}</p>
-                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                    <span>{t.date}</span>
-                    <span>{t.status}</span>
+              {!historyLoaded ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Loading...
+                </p>
+              ) : trips.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No trip records
+                </p>
+              ) : (
+                trips.map((t) => (
+                  <div key={t.id} className="rounded-md border p-3 text-sm">
+                    <p className="font-medium">
+                      {t.source} → {t.destination}
+                    </p>
+                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                      <span>{t.createdAt?.split("T")[0] ?? "—"}</span>
+                      <span>{t.status}</span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </TabsContent>
           </Tabs>
 
           <div className="flex gap-2 p-4 border-t">
+            {saveError && (
+              <p className="text-xs text-red-500 absolute bottom-16 left-4 right-4">
+                {saveError}
+              </p>
+            )}
             <Button
               className="flex-1 transition-all active:scale-95 hover:shadow-md"
-              onClick={() => onSave(form)}
+              onClick={handleSave}
+              disabled={saving}
             >
-              Save Changes
+              {saving ? "Saving..." : "Save Changes"}
             </Button>
-            <Button variant="outline" className="flex-1 transition-transform active:scale-95" onClick={onClose}>
+            <Button
+              variant="outline"
+              className="flex-1 transition-transform active:scale-95"
+              onClick={onClose}
+            >
               Cancel
             </Button>
           </div>

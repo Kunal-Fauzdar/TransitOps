@@ -46,6 +46,41 @@ export default function MaintenancePage() {
   const activeCount = logs.filter((l) => l.isActive).length;
   const totalCost = logs.reduce((sum, l) => sum + (l.cost || 0), 0);
 
+  const handleExport = () => {
+    const headers = [
+      "ID",
+      "Vehicle Reg",
+      "Vehicle Name",
+      "Type",
+      "Cost",
+      "Start Date",
+      "End Date",
+      "Status",
+      "Notes",
+    ];
+    const rows = logs.map((l) => [
+      l.id,
+      l.vehicleReg ?? "",
+      l.vehicleName ?? "",
+      l.type,
+      l.cost,
+      l.startDate,
+      l.endDate ?? "",
+      l.isActive ? "Active" : "Closed",
+      l.notes ?? "",
+    ]);
+    const csv = [headers, ...rows]
+      .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `maintenance-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
       <div className="flex items-center justify-between">
@@ -62,6 +97,7 @@ export default function MaintenancePage() {
           <Button
             variant="outline"
             className="transition-all active:scale-95 hover:border-slate-400"
+            onClick={handleExport}
           >
             <Download className="mr-2 h-4 w-4" />
             Export Data
