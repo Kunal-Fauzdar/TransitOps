@@ -16,27 +16,59 @@ import type { MaintenanceLog } from "@/lib/types";
 interface Props {
   log: MaintenanceLog | null;
   onOpenChange: (open: boolean) => void;
-  onClose: (log: MaintenanceLog) => void;
+  onClose: () => void;
 }
 
 export default function CloseRecordModal({ log, onOpenChange, onClose }: Props) {
   const [endDate, setEndDate] = useState("");
   const [finalCost, setFinalCost] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   if (!log) return null;
 
   const handleClose = async () => {
+    setError("");
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 500));
-    setLoading(false);
-    onClose({ ...log, endDate, cost: Number(finalCost) || log.cost, isActive: false });
+    try {
+      const res = await fetch(`/api/maintenance/${log.id}/close`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          endDate,
+          cost: Number(finalCost) || log.cost,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Failed to close maintenance record");
+        return;
+      }
+
+      onClose();
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const vehicleLabel = log.vehicleId ?? log.vehicleReg ?? "vehicle";
+  const vehicleLabel = log.vehicleReg ?? log.vehicleId ?? "vehicle";
 
   return (
-    <Dialog open={!!log} onOpenChange={onOpenChange}>
+    <Dialog
+      open={!!log}
+      onOpenChange={(o) => {
+        if (!o) {
+          setEndDate("");
+          setFinalCost("");
+          setError("");
+        }
+        onOpenChange(o);
+      }}
+    >
       <DialogContent className="sm:max-w-sm">
         <motion.div
           initial={{ opacity: 0, scale: 0.96 }}
@@ -49,6 +81,12 @@ export default function CloseRecordModal({ log, onOpenChange, onClose }: Props) 
               Enter completion details for {vehicleLabel}
             </p>
           </DialogHeader>
+
+          {error && (
+            <div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+              {error}
+            </div>
+          )}
 
           <div className="space-y-4 py-2">
             <div className="space-y-2">
@@ -74,7 +112,7 @@ export default function CloseRecordModal({ log, onOpenChange, onClose }: Props) 
           <div className="space-y-2 pt-2">
             <Button
               onClick={handleClose}
-              disabled={loading}
+              disabled={loading || !endDate}
               className="w-full transition-all active:scale-95 hover:shadow-md"
             >
               {loading ? "Closing..." : "Close record"}

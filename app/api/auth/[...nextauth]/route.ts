@@ -19,7 +19,6 @@ export const authOptions: NextAuthOptions = {
 
         const session = getSession()
         try {
-          // Fetch user node by email
           const result = await session.run(
             `
             MATCH (u:User {email: $email})
@@ -30,22 +29,24 @@ export const authOptions: NextAuthOptions = {
           )
 
           if (result.records.length === 0) {
-            throw new Error('No user found with this email')
+            return null
           }
 
           const userRecord = result.records[0].get('user')
 
-          // Verify password hash
+          if (!userRecord.passwordHash) {
+            return null
+          }
+
           const isPasswordCorrect = await bcrypt.compare(
             credentials.password,
             userRecord.passwordHash
           )
 
           if (!isPasswordCorrect) {
-            throw new Error('Invalid email or password')
+            return null
           }
 
-          // Return user object without the password hash
           return {
             id: userRecord.id,
             name: userRecord.name,

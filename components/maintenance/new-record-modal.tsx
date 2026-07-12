@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/select";
 import { motion } from "framer-motion";
 
-const VEHICLES = ["TX-4092", "CA-1122", "FL-8839", "NY-0042", "TX-2291", "CA-9041"];
 const SERVICE_TYPES = ["Oil Change", "Brake Repair", "Tire Rotation", "DOT Inspection", "Transmission Service", "A/C Repair"];
 
 interface Props {
@@ -31,23 +30,83 @@ interface Props {
 }
 
 export default function NewRecordModal({ open, onOpenChange, onCreate }: Props) {
+  const [vehicles, setVehicles] = useState<{ regNumber: string; name: string }[]>([]);
   const [vehicle, setVehicle] = useState("");
   const [serviceType, setServiceType] = useState("");
   const [startDate, setStartDate] = useState("");
   const [estimatedCost, setEstimatedCost] = useState("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [vehiclesFetched, setVehiclesFetched] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const controller = new AbortController();
+    fetch("/api/vehicles?status=Available", { signal: controller.signal })
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setVehicles(data);
+        }
+        setVehiclesFetched(true);
+      })
+      .catch(() => {
+        setVehiclesFetched(true);
+      });
+    return () => controller.abort();
+  }, [open]);
+
+  const resetForm = () => {
+    setVehicle("");
+    setServiceType("");
+    setStartDate("");
+    setEstimatedCost("");
+    setNotes("");
+    setError("");
+  };
 
   const handleCreate = async () => {
+    setError("");
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 600));
-    setLoading(false);
-    onCreate();
-    onOpenChange(false);
+    try {
+      const res = await fetch("/api/maintenance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vehicleId: vehicle,
+          type: serviceType,
+          startDate,
+          cost: Number(estimatedCost) || 0,
+          notes,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Failed to create maintenance record");
+        return;
+      }
+
+      resetForm();
+      onCreate();
+      onOpenChange(false);
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) resetForm();
+        onOpenChange(o);
+      }}
+    >
       <DialogContent className="sm:max-w-md">
         <motion.div
           initial={{ opacity: 0, scale: 0.97 }}
@@ -58,16 +117,24 @@ export default function NewRecordModal({ open, onOpenChange, onCreate }: Props) 
             <DialogTitle>New Maintenance Record</DialogTitle>
           </DialogHeader>
 
+          {error && (
+            <div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Vehicle</Label>
               <Select value={vehicle} onValueChange={(val) => setVehicle(val ?? "")}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Search vehicle ID..." />
+                  <SelectValue placeholder={!vehiclesFetched ? "Loading vehicles..." : "Select vehicle..."} />
                 </SelectTrigger>
                 <SelectContent>
-                  {VEHICLES.map((v) => (
-                    <SelectItem key={v} value={v}>{v}</SelectItem>
+                  {vehicles.map((v) => (
+                    <SelectItem key={v.regNumber} value={v.regNumber}>
+                      {v.regNumber} &mdash; {v.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -123,7 +190,7 @@ export default function NewRecordModal({ open, onOpenChange, onCreate }: Props) 
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={loading}
+              disabled={loading || !vehicle || !serviceType || !startDate}
               className="transition-all active:scale-95 hover:shadow-md"
             >
               {loading ? "Creating..." : "Create record"}

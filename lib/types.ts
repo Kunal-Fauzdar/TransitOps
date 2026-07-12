@@ -58,6 +58,7 @@ export interface MaintenanceLog {
   startDate: string // ISO date string
   endDate?: string // ISO date string if closed
   isActive: boolean
+  notes?: string
 }
 
 export interface FuelLog {
