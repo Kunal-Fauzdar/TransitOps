@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { 
   BarChart, 
   Bar, 
@@ -69,10 +69,14 @@ interface RoiItem {
 }
 
 export default function ReportsPage() {
+  const [vehicles, setVehicles] = useState<any[]>([]);
   const [fuelEfficiency, setFuelEfficiency] = useState<FuelEfficiencyItem[]>([]);
   const [utilization, setUtilization] = useState<UtilizationItem[]>([]);
   const [operationalCost, setOperationalCost] = useState<OperationalCostItem[]>([]);
   const [roi, setRoi] = useState<RoiItem[]>([]);
+
+  const [vehicleTypeFilter, setVehicleTypeFilter] = useState("all");
+  const [selectedReportType, setSelectedReportType] = useState("fuel-efficiency");
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -81,22 +85,25 @@ export default function ReportsPage() {
     setLoading(true);
     setError("");
     try {
-      const [feRes, utRes, ocRes, roiRes] = await Promise.all([
+      const [vehRes, feRes, utRes, ocRes, roiRes] = await Promise.all([
+        fetch("/api/vehicles"),
         fetch("/api/reports/fuel-efficiency"),
         fetch("/api/reports/utilization"),
         fetch("/api/reports/operational-cost"),
         fetch("/api/reports/roi"),
       ]);
 
-      if (!feRes.ok || !utRes.ok || !ocRes.ok || !roiRes.ok) {
+      if (!vehRes.ok || !feRes.ok || !utRes.ok || !ocRes.ok || !roiRes.ok) {
         throw new Error("Failed to load one or more reports. Please verify database connection.");
       }
 
+      const vehData = await vehRes.json();
       const feData = await feRes.json();
       const utData = await utRes.json();
       const ocData = await ocRes.json();
       const roiData = await roiRes.json();
 
+      setVehicles(vehData);
       setFuelEfficiency(feData);
       setUtilization(utData);
       setOperationalCost(ocData);
@@ -116,6 +123,36 @@ export default function ReportsPage() {
     const url = `/api/reports/export.${format}?type=${type}`;
     window.open(url, "_blank");
   };
+
+  // Dynamic filter logic based on selected vehicle type
+  const filteredFuelEfficiency = useMemo(() => {
+    if (vehicleTypeFilter === "all") return fuelEfficiency;
+    return fuelEfficiency.filter(item => {
+      const v = vehicles.find(veh => veh.regNumber === item.regNumber);
+      return v?.type?.toLowerCase() === vehicleTypeFilter.toLowerCase();
+    });
+  }, [fuelEfficiency, vehicleTypeFilter, vehicles]);
+
+  const filteredUtilization = useMemo(() => {
+    if (vehicleTypeFilter === "all") return utilization;
+    return utilization.filter(item => item.type.toLowerCase() === vehicleTypeFilter.toLowerCase());
+  }, [utilization, vehicleTypeFilter]);
+
+  const filteredOperationalCost = useMemo(() => {
+    if (vehicleTypeFilter === "all") return operationalCost;
+    return operationalCost.filter(item => {
+      const v = vehicles.find(veh => veh.regNumber === item.regNumber);
+      return v?.type?.toLowerCase() === vehicleTypeFilter.toLowerCase();
+    });
+  }, [operationalCost, vehicleTypeFilter, vehicles]);
+
+  const filteredRoi = useMemo(() => {
+    if (vehicleTypeFilter === "all") return roi;
+    return roi.filter(item => {
+      const v = vehicles.find(veh => veh.regNumber === item.regNumber);
+      return v?.type?.toLowerCase() === vehicleTypeFilter.toLowerCase();
+    });
+  }, [roi, vehicleTypeFilter, vehicles]);
 
   return (
     <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
@@ -139,6 +176,58 @@ export default function ReportsPage() {
           )}
           Refresh Analytics
         </Button>
+      </div>
+
+      {/* Top Filter & Export Bar */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-4 rounded-xl border shadow-sm">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Vehicle Type</span>
+            <select 
+              value={vehicleTypeFilter} 
+              onChange={(e) => setVehicleTypeFilter(e.target.value)}
+              className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs bg-slate-50 text-slate-700 outline-none w-40 h-8 hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <option value="all">All Vehicles</option>
+              <option value="Bus">Bus</option>
+              <option value="Truck">Truck</option>
+              <option value="Van">Van</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Export Report Target</span>
+            <select 
+              value={selectedReportType} 
+              onChange={(e) => setSelectedReportType(e.target.value)}
+              className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs bg-slate-50 text-slate-700 outline-none w-48 h-8 hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <option value="fuel-efficiency">Fuel Efficiency</option>
+              <option value="utilization">Fleet Utilization</option>
+              <option value="operational-cost">Operational Cost</option>
+              <option value="roi">Vehicle ROI</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => handleExport(selectedReportType, "csv")}
+            className="h-8 text-xs border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 transition-colors font-medium"
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5 text-emerald-600" />
+            Export CSV
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => handleExport(selectedReportType, "pdf")}
+            className="h-8 text-xs border-rose-200 hover:bg-rose-50 hover:text-rose-700 transition-colors font-medium"
+          >
+            <FileText className="h-3.5 w-3.5 mr-1.5 text-rose-600" />
+            Export PDF
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -187,18 +276,18 @@ export default function ReportsPage() {
               </div>
             </CardHeader>
             <CardContent className="pt-6">
-              {fuelEfficiency.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-10">No completed trip data to compute efficiency.</p>
+              {filteredFuelEfficiency.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-10">No completed trip data to compute efficiency for this type.</p>
               ) : (
                 <div className="space-y-4">
                   <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={fuelEfficiency}>
+                    <BarChart data={filteredFuelEfficiency}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                       <XAxis dataKey="regNumber" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
                       <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} label={{ value: "km/L", angle: -90, position: "insideLeft", style: { fontSize: 11, fill: "#64748b" } }} />
                       <Tooltip formatter={(value) => [`${value} km/L`, "Efficiency"]} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
                       <Bar dataKey="efficiency" fill="#3b82f6" radius={[4, 4, 0, 0]}>
-                        {fuelEfficiency.map((entry, index) => (
+                        {filteredFuelEfficiency.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.efficiency > 4 ? "#10b981" : "#3b82f6"} />
                         ))}
                       </Bar>
@@ -215,7 +304,7 @@ export default function ReportsPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {fuelEfficiency.slice(0, 4).map((item) => (
+                        {filteredFuelEfficiency.slice(0, 4).map((item) => (
                           <TableRow key={item.regNumber}>
                             <TableCell className="text-xs font-medium">{item.regNumber} ({item.name})</TableCell>
                             <TableCell className="text-xs text-right">{item.totalDistance.toLocaleString()} km</TableCell>
@@ -263,18 +352,18 @@ export default function ReportsPage() {
               </div>
             </CardHeader>
             <CardContent className="pt-6">
-              {utilization.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-10">No active fleet vehicles registered.</p>
+              {filteredUtilization.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-10">No active fleet vehicles registered for this type.</p>
               ) : (
                 <div className="space-y-4">
                   <ResponsiveContainer width="100%" height={240}>
-                    <BarChart layout="vertical" data={utilization}>
+                    <BarChart layout="vertical" data={filteredUtilization}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                       <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
                       <YAxis dataKey="type" type="category" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={80} />
                       <Tooltip formatter={(value) => [`${value}%`, "Utilization"]} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
                       <Bar dataKey="utilizationPct" fill="#4f46e5" radius={[0, 4, 4, 0]} barSize={20}>
-                        {utilization.map((entry, index) => (
+                        {filteredUtilization.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.utilizationPct > 60 ? "#4f46e5" : "#818cf8"} />
                         ))}
                       </Bar>
@@ -291,7 +380,7 @@ export default function ReportsPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {utilization.map((item) => (
+                        {filteredUtilization.map((item) => (
                           <TableRow key={item.type}>
                             <TableCell className="text-xs font-medium">{item.type}</TableCell>
                             <TableCell className="text-xs text-right">{item.activeType}</TableCell>
@@ -343,12 +432,12 @@ export default function ReportsPage() {
               </div>
             </CardHeader>
             <CardContent className="pt-6">
-              {operationalCost.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-10">No operational cost entries logged.</p>
+              {filteredOperationalCost.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-10">No operational cost entries logged for this type.</p>
               ) : (
                 <div className="space-y-4">
                   <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={operationalCost.slice(0, 6)}>
+                    <BarChart data={filteredOperationalCost.slice(0, 6)}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                       <XAxis dataKey="regNumber" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
                       <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
@@ -371,7 +460,7 @@ export default function ReportsPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {operationalCost.slice(0, 4).map((item) => (
+                        {filteredOperationalCost.slice(0, 4).map((item) => (
                           <TableRow key={item.regNumber}>
                             <TableCell className="text-xs font-medium">{item.regNumber} ({item.name})</TableCell>
                             <TableCell className="text-xs text-right">${item.fuelCost.toLocaleString()}</TableCell>
@@ -420,8 +509,8 @@ export default function ReportsPage() {
               </div>
             </CardHeader>
             <CardContent className="pt-6">
-              {roi.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-10">No financial acquisitions or trip logs found to calculate ROI.</p>
+              {filteredRoi.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-10">No financial acquisitions or trip logs found to calculate ROI for this type.</p>
               ) : (
                 <div className="space-y-4">
                   <div className="overflow-x-auto rounded-lg border">
@@ -436,7 +525,7 @@ export default function ReportsPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {roi.map((item) => {
+                        {filteredRoi.map((item) => {
                           const isPositive = item.roi >= 0;
                           return (
                             <TableRow key={item.regNumber}>
