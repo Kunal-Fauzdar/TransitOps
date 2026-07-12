@@ -56,10 +56,25 @@ export default function VehicleDetailPanel({ vehicle, onClose, onSave }: Props) 
           </div>
 
           <Tabs defaultValue="details" className="flex-1 flex flex-col overflow-hidden">
-            <TabsList className="grid grid-cols-3 mx-4 mt-3">
-              <TabsTrigger value="details">Details</TabsTrigger>
-              <TabsTrigger value="maintenance">Maintenance history</TabsTrigger>
-              <TabsTrigger value="trips">Trip history</TabsTrigger>
+            <TabsList className="mx-4 mt-3 grid w-auto grid-cols-3 gap-1 bg-slate-100 p-1 rounded-md">
+              <TabsTrigger
+                value="details"
+                className="text-xs px-2 py-1.5 whitespace-nowrap data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              >
+                Details
+              </TabsTrigger>
+              <TabsTrigger
+                value="maintenance"
+                className="text-xs px-2 py-1.5 whitespace-nowrap data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              >
+                Maintenance
+              </TabsTrigger>
+              <TabsTrigger
+                value="trips"
+                className="text-xs px-2 py-1.5 whitespace-nowrap data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              >
+                Trip history
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="details" className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
