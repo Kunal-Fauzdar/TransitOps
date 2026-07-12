@@ -1,0 +1,323 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "TransitOps API",
+    "description": "API documentation for the TransitOps fleet and operations management platform.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/api",
+      "description": "Development API Gateway"
+    }
+  ],
+  "paths": {
+    "/auth/signin": {
+      "post": {
+        "summary": "Authenticate User",
+        "description": "Log in a user and obtain a session cookie/JWT via NextAuth.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string" }
+                },
+                "required": ["email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Successfully authenticated" },
+          "401": { "description": "Invalid credentials" }
+        }
+      }
+    },
+    "/vehicles": {
+      "get": {
+        "summary": "List Vehicles",
+        "parameters": [
+          { "name": "type", "in": "query", "schema": { "type": "string" } },
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          { "name": "region", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "List of vehicles" }
+        }
+      },
+      "post": {
+        "summary": "Create Vehicle",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "regNumber": { "type": "string" },
+                  "name": { "type": "string" },
+                  "type": { "type": "string" },
+                  "maxLoadCapacity": { "type": "number" },
+                  "odometer": { "type": "number" },
+                  "acquisitionCost": { "type": "number" },
+                  "status": { "type": "string", "enum": ["Available", "On Trip", "In Shop", "Retired"] },
+                  "region": { "type": "string" }
+                },
+                "required": ["regNumber", "name", "type", "maxLoadCapacity", "odometer", "acquisitionCost", "status", "region"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Vehicle created" },
+          "422": { "description": "Validation error or registration number exists" }
+        }
+      }
+    },
+    "/vehicles/{reg}": {
+      "get": {
+        "summary": "Get Vehicle Details",
+        "parameters": [
+          { "name": "reg", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Vehicle details" },
+          "404": { "description": "Vehicle not found" }
+        }
+      },
+      "patch": {
+        "summary": "Update Vehicle",
+        "parameters": [
+          { "name": "reg", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "status": { "type": "string" },
+                  "odometer": { "type": "number" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Vehicle updated" }
+        }
+      }
+    },
+    "/vehicles/dispatch-pool": {
+      "get": {
+        "summary": "Get Available Vehicles",
+        "description": "Returns vehicles that are in Available status and not Retired or In Shop.",
+        "responses": {
+          "200": { "description": "List of available vehicles for dispatch" }
+        }
+      }
+    },
+    "/drivers": {
+      "get": {
+        "summary": "List Drivers",
+        "responses": {
+          "200": { "description": "List of drivers" }
+        }
+      },
+      "post": {
+        "summary": "Create Driver",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "licenseNumber": { "type": "string" },
+                  "licenseCategory": { "type": "string" },
+                  "licenseExpiryDate": { "type": "string" },
+                  "contactNumber": { "type": "string" },
+                  "safetyScore": { "type": "number" },
+                  "status": { "type": "string", "enum": ["Available", "On Trip", "Off Duty", "Suspended"] }
+                },
+                "required": ["name", "licenseNumber", "licenseCategory", "licenseExpiryDate", "contactNumber", "safetyScore", "status"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Driver created" }
+        }
+      }
+    },
+    "/drivers/dispatch-pool": {
+      "get": {
+        "summary": "Get Available Drivers",
+        "description": "Returns drivers with status Available whose licenses have not expired.",
+        "responses": {
+          "200": { "description": "List of available drivers for dispatch" }
+        }
+      }
+    },
+    "/trips": {
+      "get": {
+        "summary": "List Trips",
+        "responses": {
+          "200": { "description": "List of trips" }
+        }
+      },
+      "post": {
+        "summary": "Create Trip (Draft)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "source": { "type": "string" },
+                  "destination": { "type": "string" },
+                  "vehicleId": { "type": "string" },
+                  "driverId": { "type": "string" },
+                  "cargoWeight": { "type": "number" },
+                  "plannedDistance": { "type": "number" }
+                },
+                "required": ["source", "destination", "vehicleId", "driverId", "cargoWeight", "plannedDistance"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Trip created as Draft" },
+          "422": { "description": "Cargo weight exceeds vehicle max capacity" }
+        }
+      }
+    },
+    "/trips/{id}/dispatch": {
+      "post": {
+        "summary": "Dispatch Trip",
+        "description": "Sets Trip status to Dispatched, and sets both Vehicle and Driver status to On Trip in a single transaction.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Trip dispatched successfully" },
+          "422": { "description": "Vehicle or Driver is not available" }
+        }
+      }
+    },
+    "/trips/{id}/complete": {
+      "post": {
+        "summary": "Complete Trip",
+        "description": "Sets Trip status to Completed, resets Vehicle and Driver to Available, and updates Vehicle odometer.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "finalOdometer": { "type": "number" },
+                  "fuelConsumed": { "type": "number" }
+                },
+                "required": ["finalOdometer", "fuelConsumed"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Trip completed successfully" }
+        }
+      }
+    },
+    "/trips/{id}/cancel": {
+      "post": {
+        "summary": "Cancel Trip",
+        "description": "Cancels a dispatched trip and returns Vehicle and Driver to Available.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Trip cancelled successfully" }
+        }
+      }
+    },
+    "/maintenance": {
+      "get": {
+        "summary": "List Maintenance Logs",
+        "responses": {
+          "200": { "description": "List of maintenance logs" }
+        }
+      },
+      "post": {
+        "summary": "Create Maintenance Record",
+        "description": "Creates an active MaintenanceLog and sets Vehicle status to In Shop.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "vehicleId": { "type": "string" },
+                  "type": { "type": "string" },
+                  "startDate": { "type": "string" },
+                  "cost": { "type": "number" }
+                },
+                "required": ["vehicleId", "type", "startDate", "cost"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Maintenance record created" }
+        }
+      }
+    },
+    "/maintenance/{id}/close": {
+      "post": {
+        "summary": "Close Maintenance Record",
+        "description": "Closes an active MaintenanceLog, sets Vehicle status back to Available (unless retired).",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "endDate": { "type": "string" },
+                  "cost": { "type": "number" }
+                },
+                "required": ["endDate", "cost"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Maintenance record closed" }
+        }
+      }
+    },
+    "/dashboard/kpis": {
+      "get": {
+        "summary": "Get Dashboard KPIs",
+        "responses": {
+          "200": { "description": "Operational KPIs" }
+        }
+      }
+    }
+  }
+}
