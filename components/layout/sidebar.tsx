@@ -7,11 +7,8 @@ import {
   LayoutDashboard,
   Truck,
   Users,
-  MapPin,
   Wrench,
   BarChart3,
-  Settings,
-  LifeBuoy,
   LogOut,
   Fuel,
 } from "lucide-react";
@@ -21,11 +18,9 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/vehicles", label: "Fleet Assets", icon: Truck },
   { href: "/drivers", label: "Drivers", icon: Users },
-  { href: "/live-map", label: "Live Map", icon: MapPin },
   { href: "/maintenance", label: "Maintenance", icon: Wrench },
   { href: "/fuel-expenses", label: "Fuel & Expenses", icon: Fuel },
   { href: "/reports", label: "Reports", icon: BarChart3 },
-  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export default function Sidebar() {
@@ -69,10 +64,6 @@ export default function Sidebar() {
       </nav>
 
       <div className="px-3 pb-4 space-y-1">
-        <button className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 w-full transition-colors">
-          <LifeBuoy className="h-4 w-4" />
-          Support
-        </button>
 
         <div className="flex items-center gap-2 px-3 py-3 mt-2 border-t">
           <div className="h-8 w-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-semibold">
