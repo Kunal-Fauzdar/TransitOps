@@ -6,9 +6,9 @@ import { getSession } from '@/lib/neo4j'
 const updateVehicleSchema = z.object({
   name: z.string().min(1).trim().optional(),
   type: z.string().min(1).trim().optional(),
-  maxLoadCapacity: z.number().positive().optional(),
+  maxLoadCapacity: z.number().nonnegative().optional(),
   odometer: z.number().nonnegative().optional(),
-  acquisitionCost: z.number().positive().optional(),
+  acquisitionCost: z.number().nonnegative().optional(),
   status: z.enum(['Available', 'On Trip', 'In Shop', 'Retired']).optional(),
   region: z.string().min(1).trim().optional(),
 })
