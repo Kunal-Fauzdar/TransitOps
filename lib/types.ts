@@ -50,6 +50,9 @@ export interface Trip {
 
 export interface MaintenanceLog {
   id: string
+  vehicleId?: string
+  vehicleReg?: string
+  vehicleName?: string
   type: string
   cost: number
   startDate: string // ISO date string
