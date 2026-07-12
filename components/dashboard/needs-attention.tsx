@@ -54,6 +54,7 @@ export default function NeedsAttention({
         <Button
           variant="outline"
           className="w-full transition-all active:scale-95 hover:border-blue-400 hover:text-blue-600"
+          onClick={() => alert("Review Operations: This feature is not implemented yet.")}
         >
           <AlertTriangle className="mr-2 h-4 w-4" />
           Review Operations
