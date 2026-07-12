@@ -7,6 +7,7 @@ interface TripView extends Trip {
   id: string;
   driverName: string;
   vehicleRegNumber: string;
+  driverId?: string;
 }
 
 interface Props {

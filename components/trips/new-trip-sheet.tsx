@@ -33,6 +33,7 @@ interface TripView extends Trip {
   id: string;
   driverName: string;
   vehicleRegNumber: string;
+  driverId?: string;
 }
 
 interface Props {
@@ -135,6 +136,7 @@ export default function NewTripSheet({
       status: "Draft",
       createdAt: new Date().toISOString(),
       driverName: selectedDriver.name,
+      driverId: selectedDriver.id,
       vehicleRegNumber: selectedVehicle.regNumber,
     });
 
@@ -154,6 +156,7 @@ export default function NewTripSheet({
       status: "Draft",
       createdAt: new Date().toISOString(),
       driverName: selectedDriver?.name || "Unassigned",
+      driverId: selectedDriver?.id || "",
       vehicleRegNumber: selectedVehicle?.regNumber || "Unassigned",
     });
 
