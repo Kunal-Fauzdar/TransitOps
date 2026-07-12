@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
         : Number(val || 0)
     }
 
-    const report = result.records.map((record) => {
+    const report = result.records.map((record: any) => {
       const totalType = parseNum(record.get('totalType'))
       const activeType = parseNum(record.get('activeType'))
       const utilizationPct = parseNum(record.get('utilizationPct'))
@@ -77,7 +77,7 @@ export async function getUtilizationData() {
         : Number(val || 0)
     }
 
-    return result.records.map((record) => {
+    return result.records.map((record: any) => {
       const totalType = parseNum(record.get('totalType'))
       const activeType = parseNum(record.get('activeType'))
       const utilizationPct = parseNum(record.get('utilizationPct'))

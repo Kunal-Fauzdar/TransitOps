@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     `
 
     const result = await session.run(query, params)
-    const vehicles = result.records.map((record) => record.get('vehicle'))
+    const vehicles = result.records.map((record: any) => record.get('vehicle'))
 
     return NextResponse.json(vehicles)
   } catch (error) {

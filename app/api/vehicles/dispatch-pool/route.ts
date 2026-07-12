@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
       ORDER BY v.regNumber ASC
       `
     )
-    const vehicles = result.records.map((record) => record.get('vehicle'))
+    const vehicles = result.records.map((record: any) => record.get('vehicle'))
     return NextResponse.json(vehicles)
   } catch (error) {
     console.error('Error fetching vehicle dispatch pool:', error)

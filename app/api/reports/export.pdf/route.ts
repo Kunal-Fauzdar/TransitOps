@@ -169,7 +169,7 @@ export async function GET(request: NextRequest) {
     const pdfBytes = await pdfDoc.save()
     const fileName = `transitops_${type.replace('-', '_')}_report.pdf`
 
-    return new NextResponse(pdfBytes, {
+    return new NextResponse(Buffer.from(pdfBytes), {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="${fileName}"`,

@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
         : Number(val || 0)
     }
 
-    const report = result.records.map((record) => {
+    const report = result.records.map((record: any) => {
       const acquisitionCost = parseNum(record.get('acquisitionCost'))
       const revenue = parseNum(record.get('revenue'))
       const totalCost = parseNum(record.get('totalCost'))
@@ -92,7 +92,7 @@ export async function getRoiData() {
         : Number(val || 0)
     }
 
-    return result.records.map((record) => {
+    return result.records.map((record: any) => {
       const acquisitionCost = parseNum(record.get('acquisitionCost'))
       const revenue = parseNum(record.get('revenue'))
       const totalCost = parseNum(record.get('totalCost'))

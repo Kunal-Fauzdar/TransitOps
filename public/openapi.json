@@ -1,58 +1,60 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "TransitOps API",
-    "description": "API documentation for the TransitOps fleet and operations management platform.",
+    "title": "TransitOps API Documentation",
+    "description": "Comprehensive API specification for the TransitOps fleet operations and dashboard platform. Contains endpoints for vehicles, drivers, trips, maintenance logs, expenses, fuel logs, automated notifications, and dynamic analytics reports.",
     "version": "1.0.0"
   },
   "servers": [
     {
       "url": "/api",
-      "description": "Development API Gateway"
+      "description": "TransitOps API Gateway"
     }
+  ],
+  "tags": [
+    { "name": "Authentication", "description": "NextAuth credentials provider authentication and CSRF protection endpoints" },
+    { "name": "Vehicles", "description": "CRUD operations for the vehicle registry, dispatch pools, and cost summaries" },
+    { "name": "Drivers", "description": "CRUD operations for drivers, dispatch pools, and licensing tracking" },
+    { "name": "Trips", "description": "Kanban trip state management (Draft -> Dispatched -> Completed/Cancelled)" },
+    { "name": "Maintenance", "description": "Lifecycle records for vehicle repairs and shop status changes" },
+    { "name": "Fuel & Expenses", "description": "Tracking logs for fuel consumption and external expenses like tolls" },
+    { "name": "Dashboard & Reports", "description": "Calculations for KPIs, operational charts, ROI, and CSV/PDF export generation" },
+    { "name": "Notifications", "description": "Manager notification dispatchers and automated email templates" }
   ],
   "paths": {
     "/auth/callback/credentials": {
       "post": {
-        "summary": "Authenticate User (NextAuth Credentials)",
-        "description": "Performs authentication using credentials provider. Note: requires a valid csrfToken which can be fetched from /api/auth/csrf.",
+        "tags": ["Authentication"],
+        "summary": "Authenticate User",
+        "description": "Performs user sign-in using NextAuth CredentialsProvider. Requires a valid csrfToken.",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "email": { "type": "string", "format": "email", "example": "manager@transitops.com" },
-                  "password": { "type": "string", "example": "password123" },
-                  "csrfToken": { "type": "string", "description": "CSRF token fetched from /api/auth/csrf" },
-                  "json": { "type": "boolean", "default": true, "example": true }
-                },
-                "required": ["email", "password", "csrfToken"]
+                "$ref": "#/components/schemas/LoginRequest"
               }
             }
           }
         },
         "responses": {
           "200": { "description": "Successfully authenticated" },
-          "401": { "description": "Invalid credentials or token" }
+          "401": { "description": "Invalid credentials or CSRF token" }
         }
       }
     },
     "/auth/csrf": {
       "get": {
-        "summary": "Get NextAuth CSRF Token",
-        "description": "Fetches the current active CSRF token required for POST requests (like credentials sign-in).",
+        "tags": ["Authentication"],
+        "summary": "Get CSRF Token",
+        "description": "Fetches the current NextAuth CSRF token required for authenticating stateful operations.",
         "responses": {
           "200": {
             "description": "CSRF Token object",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "csrfToken": { "type": "string" }
-                  }
+                  "$ref": "#/components/schemas/CsrfTokenResponse"
                 }
               }
             }
@@ -62,283 +64,973 @@
     },
     "/vehicles": {
       "get": {
+        "tags": ["Vehicles"],
         "summary": "List Vehicles",
         "parameters": [
-          { "name": "type", "in": "query", "schema": { "type": "string" } },
-          { "name": "status", "in": "query", "schema": { "type": "string" } },
-          { "name": "region", "in": "query", "schema": { "type": "string" } }
+          { "name": "type", "in": "query", "description": "Filter by type (e.g. Truck, Van, Bus)", "schema": { "type": "string" } },
+          { "name": "status", "in": "query", "description": "Filter by status (Available, On Trip, In Shop, Retired)", "schema": { "type": "string" } },
+          { "name": "region", "in": "query", "description": "Filter by region (e.g. North, West, South, East)", "schema": { "type": "string" } }
         ],
         "responses": {
-          "200": { "description": "List of vehicles" }
+          "200": {
+            "description": "List of vehicles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Vehicle" }
+                }
+              }
+            }
+          }
         }
       },
       "post": {
+        "tags": ["Vehicles"],
         "summary": "Create Vehicle",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "regNumber": { "type": "string" },
-                  "name": { "type": "string" },
-                  "type": { "type": "string" },
-                  "maxLoadCapacity": { "type": "number" },
-                  "odometer": { "type": "number" },
-                  "acquisitionCost": { "type": "number" },
-                  "status": { "type": "string", "enum": ["Available", "On Trip", "In Shop", "Retired"] },
-                  "region": { "type": "string" }
-                },
-                "required": ["regNumber", "name", "type", "maxLoadCapacity", "odometer", "acquisitionCost", "status", "region"]
-              }
+              "schema": { "$ref": "#/components/schemas/CreateVehicleRequest" }
             }
           }
         },
         "responses": {
-          "201": { "description": "Vehicle created" },
-          "422": { "description": "Validation error or registration number exists" }
+          "201": {
+            "description": "Vehicle successfully created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Vehicle" }
+              }
+            }
+          },
+          "422": { "description": "Validation error or registration number already exists" }
         }
       }
     },
     "/vehicles/{reg}": {
       "get": {
+        "tags": ["Vehicles"],
         "summary": "Get Vehicle Details",
         "parameters": [
-          { "name": "reg", "in": "path", "required": true, "schema": { "type": "string" } }
+          { "name": "reg", "in": "path", "required": true, "description": "Vehicle registration number", "schema": { "type": "string" } }
         ],
         "responses": {
-          "200": { "description": "Vehicle details" },
+          "200": {
+            "description": "Detailed vehicle node data",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Vehicle" }
+              }
+            }
+          },
           "404": { "description": "Vehicle not found" }
         }
       },
       "patch": {
+        "tags": ["Vehicles"],
         "summary": "Update Vehicle",
         "parameters": [
-          { "name": "reg", "in": "path", "required": true, "schema": { "type": "string" } }
+          { "name": "reg", "in": "path", "required": true, "description": "Vehicle registration number", "schema": { "type": "string" } }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "name": { "type": "string" },
-                  "status": { "type": "string" },
-                  "odometer": { "type": "number" }
-                }
-              }
+              "schema": { "$ref": "#/components/schemas/UpdateVehicleRequest" }
             }
           }
         },
         "responses": {
-          "200": { "description": "Vehicle updated" }
+          "200": {
+            "description": "Vehicle successfully updated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Vehicle" }
+              }
+            }
+          },
+          "404": { "description": "Vehicle not found" }
         }
       }
     },
     "/vehicles/dispatch-pool": {
       "get": {
+        "tags": ["Vehicles"],
         "summary": "Get Available Vehicles",
-        "description": "Returns vehicles that are in Available status and not Retired or In Shop.",
+        "description": "Returns all vehicles currently eligible for dispatch. Excludes 'Retired' and 'In Shop' status values.",
         "responses": {
-          "200": { "description": "List of available vehicles for dispatch" }
+          "200": {
+            "description": "List of available vehicles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Vehicle" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vehicles/{reg}/cost-summary": {
+      "get": {
+        "tags": ["Vehicles"],
+        "summary": "Get Vehicle Operational Costs Summary",
+        "description": "Aggregates fuel logs, maintenance services, and general expenses for a specific vehicle.",
+        "parameters": [
+          { "name": "reg", "in": "path", "required": true, "description": "Vehicle registration number", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cost aggregation totals",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CostSummaryResponse" }
+              }
+            }
+          },
+          "404": { "description": "Vehicle not found" }
         }
       }
     },
     "/drivers": {
       "get": {
+        "tags": ["Drivers"],
         "summary": "List Drivers",
         "responses": {
-          "200": { "description": "List of drivers" }
+          "200": {
+            "description": "List of drivers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Driver" }
+                }
+              }
+            }
+          }
         }
       },
       "post": {
+        "tags": ["Drivers"],
         "summary": "Create Driver",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "name": { "type": "string" },
-                  "licenseNumber": { "type": "string" },
-                  "licenseCategory": { "type": "string" },
-                  "licenseExpiryDate": { "type": "string" },
-                  "contactNumber": { "type": "string" },
-                  "safetyScore": { "type": "number" },
-                  "status": { "type": "string", "enum": ["Available", "On Trip", "Off Duty", "Suspended"] }
-                },
-                "required": ["name", "licenseNumber", "licenseCategory", "licenseExpiryDate", "contactNumber", "safetyScore", "status"]
-              }
+              "schema": { "$ref": "#/components/schemas/CreateDriverRequest" }
             }
           }
         },
         "responses": {
-          "201": { "description": "Driver created" }
+          "201": {
+            "description": "Driver successfully created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Driver" }
+              }
+            }
+          },
+          "422": { "description": "Validation error or license number already exists" }
+        }
+      }
+    },
+    "/drivers/{id}": {
+      "patch": {
+        "tags": ["Drivers"],
+        "summary": "Update Driver details",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "description": "Driver unique identifier", "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateDriverRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Driver successfully updated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Driver" }
+              }
+            }
+          },
+          "404": { "description": "Driver not found" }
         }
       }
     },
     "/drivers/dispatch-pool": {
       "get": {
+        "tags": ["Drivers"],
         "summary": "Get Available Drivers",
-        "description": "Returns drivers with status Available whose licenses have not expired.",
+        "description": "Returns drivers with status 'Available' whose licenses have not expired.",
         "responses": {
-          "200": { "description": "List of available drivers for dispatch" }
+          "200": {
+            "description": "List of eligible drivers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Driver" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/drivers/expiring-licenses": {
+      "get": {
+        "tags": ["Drivers"],
+        "summary": "Get Expiring Licenses Alert List",
+        "description": "Lists drivers whose license has expired or is expiring in less than 30 days.",
+        "responses": {
+          "200": {
+            "description": "Expiring licenses list object",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ExpiringLicensesResponse" }
+              }
+            }
+          }
         }
       }
     },
     "/trips": {
       "get": {
+        "tags": ["Trips"],
         "summary": "List Trips",
         "responses": {
-          "200": { "description": "List of trips" }
+          "200": {
+            "description": "List of trips with associated driver and vehicle registration details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Trip" }
+                }
+              }
+            }
+          }
         }
       },
       "post": {
+        "tags": ["Trips"],
         "summary": "Create Trip (Draft)",
+        "description": "Creates a Trip in Draft status. Validates cargo weight constraint.",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "source": { "type": "string" },
-                  "destination": { "type": "string" },
-                  "vehicleId": { "type": "string" },
-                  "driverId": { "type": "string" },
-                  "cargoWeight": { "type": "number" },
-                  "plannedDistance": { "type": "number" }
-                },
-                "required": ["source", "destination", "vehicleId", "driverId", "cargoWeight", "plannedDistance"]
-              }
+              "schema": { "$ref": "#/components/schemas/CreateTripRequest" }
             }
           }
         },
         "responses": {
-          "201": { "description": "Trip created as Draft" },
-          "422": { "description": "Cargo weight exceeds vehicle max capacity" }
+          "201": {
+            "description": "Draft trip successfully created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Trip" }
+              }
+            }
+          },
+          "422": { "description": "Validation error or cargo weight exceeds vehicle capacity limit" }
         }
       }
     },
     "/trips/{id}/dispatch": {
       "post": {
+        "tags": ["Trips"],
         "summary": "Dispatch Trip",
-        "description": "Sets Trip status to Dispatched, and sets both Vehicle and Driver status to On Trip in a single transaction.",
+        "description": "Sets Trip status to 'Dispatched', and sets both associated Vehicle and Driver status to 'On Trip' atomically.",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+          { "name": "id", "in": "path", "required": true, "description": "Trip identifier", "schema": { "type": "string" } }
         ],
         "responses": {
-          "200": { "description": "Trip dispatched successfully" },
-          "422": { "description": "Vehicle or Driver is not available" }
+          "200": {
+            "description": "Trip successfully dispatched",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Trip" }
+              }
+            }
+          },
+          "422": { "description": "Vehicle or Driver is already assigned to another trip or unavailable" }
         }
       }
     },
     "/trips/{id}/complete": {
       "post": {
+        "tags": ["Trips"],
         "summary": "Complete Trip",
-        "description": "Sets Trip status to Completed, resets Vehicle and Driver to Available, and updates Vehicle odometer.",
+        "description": "Completes trip, releases vehicle and driver to 'Available' status, and updates vehicle odometer.",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+          { "name": "id", "in": "path", "required": true, "description": "Trip identifier", "schema": { "type": "string" } }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "finalOdometer": { "type": "number" },
-                  "fuelConsumed": { "type": "number" }
-                },
-                "required": ["finalOdometer", "fuelConsumed"]
-              }
+              "schema": { "$ref": "#/components/schemas/CompleteTripRequest" }
             }
           }
         },
         "responses": {
-          "200": { "description": "Trip completed successfully" }
+          "200": {
+            "description": "Trip successfully completed",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Trip" }
+              }
+            }
+          },
+          "422": { "description": "Invalid final odometer value or status is not Dispatched" }
         }
       }
     },
     "/trips/{id}/cancel": {
       "post": {
+        "tags": ["Trips"],
         "summary": "Cancel Trip",
-        "description": "Cancels a dispatched trip and returns Vehicle and Driver to Available.",
+        "description": "Cancels active dispatched trip, returning both driver and vehicle status to Available.",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+          { "name": "id", "in": "path", "required": true, "description": "Trip identifier", "schema": { "type": "string" } }
         ],
         "responses": {
-          "200": { "description": "Trip cancelled successfully" }
+          "200": {
+            "description": "Trip successfully cancelled",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Trip" }
+              }
+            }
+          },
+          "422": { "description": "Trip status is not Dispatched" }
         }
       }
     },
     "/maintenance": {
       "get": {
-        "summary": "List Maintenance Logs",
+        "tags": ["Maintenance"],
+        "summary": "List Maintenance logs",
         "responses": {
-          "200": { "description": "List of maintenance logs" }
+          "200": {
+            "description": "List of maintenance histories",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/MaintenanceLog" }
+                }
+              }
+            }
+          }
         }
       },
       "post": {
+        "tags": ["Maintenance"],
         "summary": "Create Maintenance Record",
-        "description": "Creates an active MaintenanceLog and sets Vehicle status to In Shop.",
+        "description": "Creates an active MaintenanceLog and moves the Vehicle status to 'In Shop' atomically.",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "vehicleId": { "type": "string" },
-                  "type": { "type": "string" },
-                  "startDate": { "type": "string" },
-                  "cost": { "type": "number" }
-                },
-                "required": ["vehicleId", "type", "startDate", "cost"]
-              }
+              "schema": { "$ref": "#/components/schemas/CreateMaintenanceRequest" }
             }
           }
         },
         "responses": {
-          "201": { "description": "Maintenance record created" }
+          "201": {
+            "description": "Maintenance entry recorded",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MaintenanceLog" }
+              }
+            }
+          },
+          "422": { "description": "Vehicle is retired or not found" }
         }
       }
     },
     "/maintenance/{id}/close": {
       "post": {
+        "tags": ["Maintenance"],
         "summary": "Close Maintenance Record",
-        "description": "Closes an active MaintenanceLog, sets Vehicle status back to Available (unless retired).",
+        "description": "Concludes maintenance log, reverting the vehicle status back to 'Available' (unless retired).",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+          { "name": "id", "in": "path", "required": true, "description": "Maintenance log identifier", "schema": { "type": "string" } }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "endDate": { "type": "string" },
-                  "cost": { "type": "number" }
-                },
-                "required": ["endDate", "cost"]
-              }
+              "schema": { "$ref": "#/components/schemas/CloseMaintenanceRequest" }
             }
           }
         },
         "responses": {
-          "200": { "description": "Maintenance record closed" }
+          "200": {
+            "description": "Maintenance successfully closed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "log": { "$ref": "#/components/schemas/MaintenanceLog" },
+                    "vehicleStatus": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "description": "Maintenance record not found" }
+        }
+      }
+    },
+    "/fuel-logs": {
+      "get": {
+        "tags": ["Fuel & Expenses"],
+        "summary": "List Fuel Logs",
+        "responses": {
+          "200": {
+            "description": "List of fuel logs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/FuelLog" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Fuel & Expenses"],
+        "summary": "Create Fuel Log",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateFuelLogRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Fuel log entry recorded",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/FuelLog" }
+              }
+            }
+          },
+          "422": { "description": "Vehicle not found" }
+        }
+      }
+    },
+    "/expenses": {
+      "get": {
+        "tags": ["Fuel & Expenses"],
+        "summary": "List Expenses",
+        "responses": {
+          "200": {
+            "description": "List of general expenses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Expense" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Fuel & Expenses"],
+        "summary": "Create Expense Log",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateExpenseRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Expense entry recorded",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Expense" }
+              }
+            }
+          },
+          "422": { "description": "Vehicle not found" }
         }
       }
     },
     "/dashboard/kpis": {
       "get": {
+        "tags": ["Dashboard & Reports"],
         "summary": "Get Dashboard KPIs",
         "responses": {
-          "200": { "description": "Operational KPIs" }
+          "200": {
+            "description": "Operations KPI overview metrics",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DashboardKpisResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/fuel-efficiency": {
+      "get": {
+        "tags": ["Dashboard & Reports"],
+        "summary": "Get Fuel Efficiency Analytics",
+        "responses": {
+          "200": {
+            "description": "List of fuel efficiencies by vehicle",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/FuelEfficiencyReportItem" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/utilization": {
+      "get": {
+        "tags": ["Dashboard & Reports"],
+        "summary": "Get Fleet Utilization Analytics",
+        "responses": {
+          "200": {
+            "description": "Utilization summary per vehicle type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/UtilizationReportItem" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/operational-cost": {
+      "get": {
+        "tags": ["Dashboard & Reports"],
+        "summary": "Get Operational Cost Analytics",
+        "responses": {
+          "200": {
+            "description": "Operational cost items",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/OperationalCostReportItem" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/roi": {
+      "get": {
+        "tags": ["Dashboard & Reports"],
+        "summary": "Get Vehicle Return on Investment Analytics",
+        "responses": {
+          "200": {
+            "description": "ROI levels per vehicle",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/RoiReportItem" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/export.csv": {
+      "get": {
+        "tags": ["Dashboard & Reports"],
+        "summary": "Export Analytics Report as CSV",
+        "parameters": [
+          { "name": "type", "in": "query", "required": true, "description": "Type of report", "schema": { "type": "string", "enum": ["fuel-efficiency", "utilization", "operational-cost", "roi"] } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Downloadable CSV file spreadsheet stream",
+            "content": {
+              "text/csv": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/export.pdf": {
+      "get": {
+        "tags": ["Dashboard & Reports"],
+        "summary": "Export Analytics Report as PDF",
+        "parameters": [
+          { "name": "type", "in": "query", "required": true, "description": "Type of report", "schema": { "type": "string", "enum": ["fuel-efficiency", "utilization", "operational-cost", "roi"] } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Downloadable PDF document stream",
+            "content": {
+              "application/pdf": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/send-expiry-reminders": {
+      "post": {
+        "tags": ["Notifications"],
+        "summary": "Send Driver License Expiry Reminders",
+        "description": "Aggregates soon-to-expire or expired drivers, sends an HTML alert email to the fleet manager via SMTP.",
+        "responses": {
+          "200": {
+            "description": "Dispatched email log report",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SendExpiryRemindersResponse" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "LoginRequest": {
+        "type": "object",
+        "properties": {
+          "email": { "type": "string", "format": "email", "example": "manager@transitops.com" },
+          "password": { "type": "string", "example": "password123" },
+          "csrfToken": { "type": "string" },
+          "json": { "type": "boolean", "default": true }
+        },
+        "required": ["email", "password", "csrfToken"]
+      },
+      "CsrfTokenResponse": {
+        "type": "object",
+        "properties": {
+          "csrfToken": { "type": "string" }
+        }
+      },
+      "Vehicle": {
+        "type": "object",
+        "properties": {
+          "regNumber": { "type": "string" },
+          "name": { "type": "string" },
+          "type": { "type": "string" },
+          "maxLoadCapacity": { "type": "number" },
+          "odometer": { "type": "number" },
+          "acquisitionCost": { "type": "number" },
+          "status": { "type": "string", "enum": ["Available", "On Trip", "In Shop", "Retired"] },
+          "region": { "type": "string" }
+        }
+      },
+      "CreateVehicleRequest": {
+        "type": "object",
+        "properties": {
+          "regNumber": { "type": "string", "example": "MH-12-AB-1234" },
+          "name": { "type": "string", "example": "Mahindra Bolero Picker" },
+          "type": { "type": "string", "example": "Van" },
+          "maxLoadCapacity": { "type": "number", "example": 1500 },
+          "odometer": { "type": "number", "example": 25000 },
+          "acquisitionCost": { "type": "number", "example": 950000 },
+          "status": { "type": "string", "enum": ["Available", "On Trip", "In Shop", "Retired"], "default": "Available" },
+          "region": { "type": "string", "example": "West" }
+        },
+        "required": ["regNumber", "name", "type", "maxLoadCapacity", "odometer", "acquisitionCost", "status", "region"]
+      },
+      "UpdateVehicleRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "status": { "type": "string", "enum": ["Available", "On Trip", "In Shop", "Retired"] },
+          "odometer": { "type": "number" }
+        }
+      },
+      "Driver": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "licenseNumber": { "type": "string" },
+          "licenseCategory": { "type": "string" },
+          "licenseExpiryDate": { "type": "string", "format": "date" },
+          "contactNumber": { "type": "string" },
+          "safetyScore": { "type": "number" },
+          "status": { "type": "string", "enum": ["Available", "On Trip", "Off Duty", "Suspended"] }
+        }
+      },
+      "CreateDriverRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "example": "John Doe" },
+          "licenseNumber": { "type": "string", "example": "DL-554488" },
+          "licenseCategory": { "type": "string", "example": "Heavy Commercial" },
+          "licenseExpiryDate": { "type": "string", "format": "date", "example": "2028-12-31" },
+          "contactNumber": { "type": "string", "example": "+919999988888" },
+          "safetyScore": { "type": "number", "example": 90 },
+          "status": { "type": "string", "enum": ["Available", "On Trip", "Off Duty", "Suspended"], "default": "Available" }
+        },
+        "required": ["name", "licenseNumber", "licenseCategory", "licenseExpiryDate", "contactNumber", "safetyScore", "status"]
+      },
+      "UpdateDriverRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "licenseNumber": { "type": "string" },
+          "licenseCategory": { "type": "string" },
+          "licenseExpiryDate": { "type": "string", "format": "date" },
+          "contactNumber": { "type": "string" },
+          "safetyScore": { "type": "number" },
+          "status": { "type": "string", "enum": ["Available", "On Trip", "Off Duty", "Suspended"] }
+        }
+      },
+      "Trip": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "source": { "type": "string" },
+          "destination": { "type": "string" },
+          "cargoWeight": { "type": "number" },
+          "plannedDistance": { "type": "number" },
+          "actualDistance": { "type": "number" },
+          "fuelConsumed": { "type": "number" },
+          "status": { "type": "string", "enum": ["Draft", "Dispatched", "Completed", "Cancelled"] },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "vehicleReg": { "type": "string" },
+          "driverId": { "type": "string" }
+        }
+      },
+      "CreateTripRequest": {
+        "type": "object",
+        "properties": {
+          "source": { "type": "string", "example": "Mumbai" },
+          "destination": { "type": "string", "example": "Nashik" },
+          "vehicleId": { "type": "string", "example": "VAN-05" },
+          "driverId": { "type": "string", "example": "driver_alex_001" },
+          "cargoWeight": { "type": "number", "example": 800 },
+          "plannedDistance": { "type": "number", "example": 170 }
+        },
+        "required": ["source", "destination", "vehicleId", "driverId", "cargoWeight", "plannedDistance"]
+      },
+      "CompleteTripRequest": {
+        "type": "object",
+        "properties": {
+          "finalOdometer": { "type": "number", "example": 45370 },
+          "fuelConsumed": { "type": "number", "example": 18 }
+        },
+        "required": ["finalOdometer", "fuelConsumed"]
+      },
+      "MaintenanceLog": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string" },
+          "cost": { "type": "number" },
+          "startDate": { "type": "string", "format": "date" },
+          "endDate": { "type": "string", "format": "date" },
+          "isActive": { "type": "boolean" },
+          "vehicleReg": { "type": "string" }
+        }
+      },
+      "CreateMaintenanceRequest": {
+        "type": "object",
+        "properties": {
+          "vehicleId": { "type": "string", "example": "VAN-05" },
+          "type": { "type": "string", "example": "Oil Change & Inspection" },
+          "startDate": { "type": "string", "format": "date", "example": "2026-07-12" },
+          "cost": { "type": "number", "example": 5500 },
+          "notes": { "type": "string", "example": "Scheduled full service" }
+        },
+        "required": ["vehicleId", "type", "startDate", "cost"]
+      },
+      "CloseMaintenanceRequest": {
+        "type": "object",
+        "properties": {
+          "endDate": { "type": "string", "format": "date", "example": "2026-07-12" },
+          "cost": { "type": "number", "example": 5500 }
+        },
+        "required": ["endDate", "cost"]
+      },
+      "FuelLog": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "liters": { "type": "number" },
+          "cost": { "type": "number" },
+          "date": { "type": "string", "format": "date" },
+          "vehicleReg": { "type": "string" }
+        }
+      },
+      "CreateFuelLogRequest": {
+        "type": "object",
+        "properties": {
+          "vehicleId": { "type": "string", "example": "VAN-05" },
+          "liters": { "type": "number", "example": 40 },
+          "cost": { "type": "number", "example": 4800 },
+          "date": { "type": "string", "format": "date", "example": "2026-07-09" }
+        },
+        "required": ["vehicleId", "liters", "cost", "date"]
+      },
+      "Expense": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["toll", "other"] },
+          "amount": { "type": "number" },
+          "date": { "type": "string", "format": "date" },
+          "vehicleReg": { "type": "string" }
+        }
+      },
+      "CreateExpenseRequest": {
+        "type": "object",
+        "properties": {
+          "vehicleId": { "type": "string", "example": "VAN-05" },
+          "type": { "type": "string", "enum": ["toll", "other"], "example": "toll" },
+          "amount": { "type": "number", "example": 240 },
+          "date": { "type": "string", "format": "date", "example": "2026-07-10" }
+        },
+        "required": ["vehicleId", "type", "amount", "date"]
+      },
+      "CostSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "fuelTotal": { "type": "number" },
+          "maintenanceTotal": { "type": "number" },
+          "otherExpensesTotal": { "type": "number" },
+          "total": { "type": "number" }
+        }
+      },
+      "DashboardKpisResponse": {
+        "type": "object",
+        "properties": {
+          "activeVehicles": { "type": "number" },
+          "availableVehicles": { "type": "number" },
+          "inMaintenance": { "type": "number" },
+          "activeTrips": { "type": "number" },
+          "pendingTrips": { "type": "number" },
+          "driversOnDuty": { "type": "number" },
+          "fleetUtilizationPct": { "type": "number" }
+        }
+      },
+      "FuelEfficiencyReportItem": {
+        "type": "object",
+        "properties": {
+          "regNumber": { "type": "string" },
+          "name": { "type": "string" },
+          "totalDistance": { "type": "number" },
+          "totalFuel": { "type": "number" },
+          "efficiency": { "type": "number" }
+        }
+      },
+      "UtilizationReportItem": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string" },
+          "totalType": { "type": "number" },
+          "activeType": { "type": "number" },
+          "utilizationPct": { "type": "number" }
+        }
+      },
+      "OperationalCostReportItem": {
+        "type": "object",
+        "properties": {
+          "regNumber": { "type": "string" },
+          "name": { "type": "string" },
+          "fuelCost": { "type": "number" },
+          "maintenanceCost": { "type": "number" },
+          "otherExpenses": { "type": "number" },
+          "totalCost": { "type": "number" }
+        }
+      },
+      "RoiReportItem": {
+        "type": "object",
+        "properties": {
+          "regNumber": { "type": "string" },
+          "name": { "type": "string" },
+          "acquisitionCost": { "type": "number" },
+          "revenue": { "type": "number" },
+          "totalCost": { "type": "number" },
+          "roi": { "type": "number" }
+        }
+      },
+      "ExpiringDriver": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "licenseNumber": { "type": "string" },
+          "licenseCategory": { "type": "string" },
+          "licenseExpiryDate": { "type": "string", "format": "date" },
+          "contactNumber": { "type": "string" },
+          "safetyScore": { "type": "number" },
+          "status": { "type": "string", "enum": ["Available", "On Trip", "Off Duty", "Suspended"] },
+          "alertType": { "type": "string", "enum": ["expired", "expiring_soon"] },
+          "daysUntilExpiry": { "type": "number" }
+        }
+      },
+      "ExpiringLicensesResponse": {
+        "type": "object",
+        "properties": {
+          "total": { "type": "number" },
+          "expired": { "type": "number" },
+          "expiringSoon": { "type": "number" },
+          "drivers": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ExpiringDriver" }
+          }
+        }
+      },
+      "SendExpiryRemindersResponse": {
+        "type": "object",
+        "properties": {
+          "sent": { "type": "boolean" },
+          "message": { "type": "string" },
+          "count": { "type": "number" },
+          "drivers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "licenseExpiryDate": { "type": "string", "format": "date" },
+                "alertType": { "type": "string" }
+              }
+            }
+          }
         }
       }
     }

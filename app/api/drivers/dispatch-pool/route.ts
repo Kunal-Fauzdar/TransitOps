@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       `,
       { today }
     )
-    const drivers = result.records.map((record) => record.get('driver'))
+    const drivers = result.records.map((record: any) => record.get('driver'))
     return NextResponse.json(drivers)
   } catch (error) {
     console.error('Error fetching driver dispatch pool:', error)

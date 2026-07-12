@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
         : Number(val || 0)
     }
 
-    const report = result.records.map((record) => {
+    const report = result.records.map((record: any) => {
       const fuelCost = parseNum(record.get('fuelCost'))
       const maintenanceCost = parseNum(record.get('maintenanceCost'))
       const otherExpenses = parseNum(record.get('otherExpenses'))
@@ -84,7 +84,7 @@ export async function getOperationalCostData() {
         : Number(val || 0)
     }
 
-    return result.records.map((record) => {
+    return result.records.map((record: any) => {
       const fuelCost = parseNum(record.get('fuelCost'))
       const maintenanceCost = parseNum(record.get('maintenanceCost'))
       const otherExpenses = parseNum(record.get('otherExpenses'))

@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
       ORDER BY f.date DESC
       `
     )
-    const logs = result.records.map((record) => record.get('log'))
+    const logs = result.records.map((record: any) => record.get('log'))
     return NextResponse.json(logs)
   } catch (error) {
     console.error('Error fetching fuel logs:', error)
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     const data = parsed.data
     const logId = `fuel_${crypto.randomUUID()}`
 
-    const logResult = await session.executeWrite(async (tx) => {
+    const logResult = await session.executeWrite(async (tx: any) => {
       // 1. Verify vehicle exists
       const vehicleCheck = await tx.run(
         `

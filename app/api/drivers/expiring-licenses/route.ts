@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       { today: todayStr, cutoff: cutoffStr }
     )
 
-    const drivers = result.records.map((record) => ({
+    const drivers = result.records.map((record: any) => ({
       ...record.get('driver'),
       alertType: record.get('alertType'),
       daysUntilExpiry: Math.ceil(
@@ -36,8 +36,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       total: drivers.length,
-      expired: drivers.filter((d) => d.alertType === 'expired').length,
-      expiringSoon: drivers.filter((d) => d.alertType === 'expiring_soon').length,
+      expired: drivers.filter((d: any) => d.alertType === 'expired').length,
+      expiringSoon: drivers.filter((d: any) => d.alertType === 'expiring_soon').length,
       drivers,
     })
   } catch (error) {

@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
         : Number(val || 0)
     }
 
-    const report = result.records.map((record) => {
+    const report = result.records.map((record: any) => {
       const totalDistance = parseNum(record.get('totalDistance'))
       const totalFuel = parseNum(record.get('totalFuel'))
       const efficiency = parseNum(record.get('efficiency'))
@@ -79,7 +79,7 @@ export async function getFuelEfficiencyData() {
         : Number(val || 0)
     }
 
-    return result.records.map((record) => {
+    return result.records.map((record: any) => {
       const totalDistance = parseNum(record.get('totalDistance'))
       const totalFuel = parseNum(record.get('totalFuel'))
       const efficiency = parseNum(record.get('efficiency'))
