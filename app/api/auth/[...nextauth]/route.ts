@@ -11,9 +11,12 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: 'Email', type: 'email', placeholder: 'manager@transitops.com' },
         password: { label: 'Password', type: 'password' },
+        role: { label: 'Role', type: 'text' },
       },
       async authorize(credentials) {
+        console.log('🔑 NextAuth authorize called with email:', credentials?.email);
         if (!credentials?.email || !credentials?.password) {
+          console.error('❌ Missing credentials');
           throw new Error('Please enter an email and password')
         }
 
@@ -28,13 +31,17 @@ export const authOptions: NextAuthOptions = {
             { email: credentials.email }
           )
 
+          console.log('👤 DB check user count:', result.records.length);
           if (result.records.length === 0) {
+            console.error('❌ No user found with email:', credentials.email);
             return null
           }
 
           const userRecord = result.records[0].get('user')
+          console.log('👤 DB User role:', userRecord.role);
 
           if (!userRecord.passwordHash) {
+            console.error('❌ User node is missing passwordHash');
             return null
           }
 
@@ -42,11 +49,20 @@ export const authOptions: NextAuthOptions = {
             credentials.password,
             userRecord.passwordHash
           )
+          console.log('🔐 Password correct:', isPasswordCorrect);
 
           if (!isPasswordCorrect) {
+            console.error('❌ Password mismatch');
             return null
           }
 
+          // Check role if passed in credentials
+          if (credentials.role && userRecord.role !== credentials.role) {
+            console.error(`❌ Role mismatch: DB says ${userRecord.role}, credentials request has ${credentials.role}`);
+            return null
+          }
+
+          console.log('✅ Auth success!');
           return {
             id: userRecord.id,
             name: userRecord.name,
@@ -54,7 +70,7 @@ export const authOptions: NextAuthOptions = {
             role: userRecord.role as UserRole,
           }
         } catch (error) {
-          console.error('Error during authorization:', error)
+          console.error('❌ Error during authorization:', error)
           return null
         } finally {
           await session.close()
