@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import FuelExpenseTabs from "@/components/fuel-expenses/fuel-expense-tabs";
 import type { Vehicle } from "@/lib/types";
 
@@ -21,78 +21,113 @@ export interface OtherExpense {
   date: string;
 }
 
-const VEHICLES: Vehicle[] = [
-  {
-    regNumber: "TX-4592-L",
-    name: "Freightliner M2",
-    type: "Truck",
-    maxLoadCapacity: 20000,
-    odometer: 45320,
-    acquisitionCost: 120000,
-    status: "Available",
-    region: "North",
-  },
-  {
-    regNumber: "IL-7723-K",
-    name: "Peterbilt 579",
-    type: "Truck",
-    maxLoadCapacity: 24000,
-    odometer: 61240,
-    acquisitionCost: 138000,
-    status: "Available",
-    region: "West",
-  },
-  {
-    regNumber: "NY-8821-B",
-    name: "Ford Transit",
-    type: "Van",
-    maxLoadCapacity: 3500,
-    odometer: 28400,
-    acquisitionCost: 52000,
-    status: "Available",
-    region: "East",
-  },
-  {
-    regNumber: "CA-1104-Z",
-    name: "Tesla Semi",
-    type: "EV Truck",
-    maxLoadCapacity: 30000,
-    odometer: 18200,
-    acquisitionCost: 180000,
-    status: "Available",
-    region: "South",
-  },
-  {
-    regNumber: "WA-9902-X",
-    name: "Volvo FH",
-    type: "Truck",
-    maxLoadCapacity: 26000,
-    odometer: 55900,
-    acquisitionCost: 145000,
-    status: "On Trip",
-    region: "West",
-  },
-];
-
-const INITIAL_FUEL_LOGS: FuelLog[] = [
-  { id: "1", vehicle: "TX-4592-L", liters: 145.5, cost: 206.61, date: "2026-10-24", status: "Verified" },
-  { id: "2", vehicle: "NY-8821-B", liters: 88.2, cost: 130.54, date: "2026-10-23", status: "Pending" },
-  { id: "3", vehicle: "CA-1104-Z", liters: 420, cost: 50.4, date: "2026-10-22", status: "Verified" },
-  { id: "4", vehicle: "TX-4592-L", liters: 132, cost: 190.08, date: "2026-10-22", status: "Verified" },
-  { id: "5", vehicle: "IL-7723-K", liters: 210, cost: 296.1, date: "2026-10-21", status: "Verified" },
-];
-
-const INITIAL_EXPENSES: OtherExpense[] = [
-  { id: "1", vehicle: "TX-4592-L", expenseType: "Maintenance", amount: 2443.81, date: "2026-10-20" },
-  { id: "2", vehicle: "IL-7723-K", expenseType: "Maintenance", amount: 1818.9, date: "2026-10-18" },
-  { id: "3", vehicle: "NY-8821-B", expenseType: "Toll", amount: 1171.66, date: "2026-10-17" },
-  { id: "4", vehicle: "CA-1104-Z", expenseType: "Other", amount: 929.75, date: "2026-10-15" },
-  { id: "5", vehicle: "WA-9902-X", expenseType: "Maintenance", amount: 722.4, date: "2026-10-14" },
-];
-
 export default function FuelExpensesPage() {
-  const [fuelLogs, setFuelLogs] = useState<FuelLog[]>(INITIAL_FUEL_LOGS);
-  const [expenses, setExpenses] = useState<OtherExpense[]>(INITIAL_EXPENSES);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [fuelLogs, setFuelLogs] = useState<FuelLog[]>([]);
+  const [expenses, setExpenses] = useState<OtherExpense[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [vehiclesRes, fuelLogsRes, expensesRes] = await Promise.all([
+        fetch("/api/vehicles"),
+        fetch("/api/fuel-logs"),
+        fetch("/api/expenses"),
+      ]);
+
+      if (!vehiclesRes.ok || !fuelLogsRes.ok || !expensesRes.ok) {
+        throw new Error("Failed to load operational costs data");
+      }
+
+      const vehiclesData = await vehiclesRes.json();
+      const fuelLogsData = await fuelLogsRes.json();
+      const expensesData = await expensesRes.json();
+
+      setVehicles(vehiclesData);
+
+      // Map Neo4j models to frontend interfaces
+      const mappedFuel = fuelLogsData.map((log: any) => ({
+        id: log.id,
+        vehicle: log.vehicleReg || log.vehicle || "Unassigned",
+        liters: Number(log.liters || 0),
+        cost: Number(log.cost || 0),
+        date: log.date || new Date().toISOString().split("T")[0],
+        status: "Verified",
+      }));
+
+      const mappedExpenses = expensesData.map((e: any) => ({
+        id: e.id,
+        vehicle: e.vehicleReg || e.vehicle || "Unassigned",
+        expenseType: e.type === "toll" ? "Toll" : e.type === "maintenance" ? "Maintenance" : "Other",
+        amount: Number(e.amount || 0),
+        date: e.date || new Date().toISOString().split("T")[0],
+      }));
+
+      setFuelLogs(mappedFuel);
+      setExpenses(mappedExpenses);
+    } catch (err: any) {
+      setError(err.message || "An error occurred while loading data");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleAddFuelLog = async (logInput: any) => {
+    try {
+      const res = await fetch("/api/fuel-logs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vehicleId: logInput.vehicle,
+          liters: Number(logInput.liters),
+          cost: Number(logInput.cost),
+          date: logInput.date,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || "Failed to add fuel log");
+        return;
+      }
+
+      fetchData();
+    } catch {
+      alert("Network error. Please try again.");
+    }
+  };
+
+  const handleAddExpense = async (expenseInput: any) => {
+    try {
+      const res = await fetch("/api/expenses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vehicleId: expenseInput.vehicle,
+          type: expenseInput.expenseType.toLowerCase() === "toll" ? "toll" : "other",
+          amount: Number(expenseInput.amount),
+          date: expenseInput.date,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || "Failed to add expense");
+        return;
+      }
+
+      fetchData();
+    } catch {
+      alert("Network error. Please try again.");
+    }
+  };
 
   const costByVehicle = useMemo(() => {
     const totals = new Map<string, number>();
@@ -101,15 +136,13 @@ export default function FuelExpensesPage() {
       totals.set(log.vehicle, (totals.get(log.vehicle) || 0) + log.cost);
     });
 
-    expenses
-      .filter((e) => e.expenseType === "Maintenance")
-      .forEach((expense) => {
-        totals.set(expense.vehicle, (totals.get(expense.vehicle) || 0) + expense.amount);
-      });
+    expenses.forEach((expense) => {
+      totals.set(expense.vehicle, (totals.get(expense.vehicle) || 0) + expense.amount);
+    });
 
     return Array.from(totals.entries())
       .map(([vehicle, total]) => {
-        const vehicleMeta = VEHICLES.find((v) => v.regNumber === vehicle);
+        const vehicleMeta = vehicles.find((v) => v.regNumber === vehicle);
         return {
           vehicle,
           label: vehicleMeta ? `${vehicle} (${vehicleMeta.name})` : vehicle,
@@ -117,7 +150,7 @@ export default function FuelExpensesPage() {
         };
       })
       .sort((a, b) => b.total - a.total);
-  }, [fuelLogs, expenses]);
+  }, [fuelLogs, expenses, vehicles]);
 
   return (
     <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
@@ -128,14 +161,28 @@ export default function FuelExpensesPage() {
         </p>
       </div>
 
-      <FuelExpenseTabs
-        vehicles={VEHICLES}
-        fuelLogs={fuelLogs}
-        expenses={expenses}
-        setFuelLogs={setFuelLogs}
-        setExpenses={setExpenses}
-        costByVehicle={costByVehicle}
-      />
+      {error && (
+        <div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {loading && fuelLogs.length === 0 ? (
+        <div className="text-center py-10 text-sm text-muted-foreground animate-pulse">
+          Loading operational expense logs...
+        </div>
+      ) : (
+        <FuelExpenseTabs
+          vehicles={vehicles}
+          fuelLogs={fuelLogs}
+          expenses={expenses}
+          setFuelLogs={setFuelLogs}
+          setExpenses={setExpenses}
+          costByVehicle={costByVehicle}
+          onAddFuelLog={handleAddFuelLog}
+          onAddExpense={handleAddExpense}
+        />
+      )}
     </div>
   );
 }

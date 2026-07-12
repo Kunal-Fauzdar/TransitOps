@@ -20,6 +20,8 @@ interface Props {
   setFuelLogs: React.Dispatch<React.SetStateAction<FuelLog[]>>;
   setExpenses: React.Dispatch<React.SetStateAction<OtherExpense[]>>;
   costByVehicle: { vehicle: string; label: string; total: number }[];
+  onAddFuelLog?: (log: any) => void;
+  onAddExpense?: (expense: any) => void;
 }
 
 export default function FuelExpenseTabs({
@@ -29,6 +31,8 @@ export default function FuelExpenseTabs({
   setFuelLogs,
   setExpenses,
   costByVehicle,
+  onAddFuelLog,
+  onAddExpense,
 }: Props) {
   const [tab, setTab] = useState("fuel");
   const [fuelOpen, setFuelOpen] = useState(false);
@@ -84,14 +88,14 @@ export default function FuelExpenseTabs({
         open={fuelOpen}
         onOpenChange={setFuelOpen}
         vehicles={vehicles}
-        onSubmit={(log) => setFuelLogs((prev) => [log, ...prev])}
+        onSubmit={(log) => onAddFuelLog ? onAddFuelLog(log) : setFuelLogs((prev) => [log, ...prev])}
       />
 
       <AddExpenseModal
         open={expenseOpen}
         onOpenChange={setExpenseOpen}
         vehicles={vehicles}
-        onSubmit={(expense) => setExpenses((prev) => [expense, ...prev])}
+        onSubmit={(expense) => onAddExpense ? onAddExpense(expense) : setExpenses((prev) => [expense, ...prev])}
       />
     </>
   );

@@ -7,25 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Loader2, Mail, Lock, Eye, EyeOff, UserCircle } from "lucide-react";
-
-const ROLES = [
-  { value: "FleetManager", label: "Fleet Manager" },
-  { value: "Driver", label: "Driver" },
-  { value: "SafetyOfficer", label: "Safety Officer" },
-  { value: "FinancialAnalyst", label: "Financial Analyst" },
-];
+import { Loader2, Mail, Lock, Eye, EyeOff } from "lucide-react";
 
 export default function LoginForm() {
   const router = useRouter();
-  const [role, setRole] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -33,7 +18,6 @@ export default function LoginForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Runs only in the browser, after mount — safe to touch localStorage here
   useEffect(() => {
     const savedEmail = localStorage.getItem("truckops_remember_email");
     if (savedEmail) {
@@ -46,35 +30,37 @@ export default function LoginForm() {
     e.preventDefault();
     setError("");
 
-    if (!role) {
-      setError("Please select your role before signing in.");
+    if (!email || !password) {
+      setError("Please enter email and password.");
       return;
     }
 
     setLoading(true);
 
-    const res = await signIn("credentials", {
-      email,
-      password,
-      role,
-      redirect: false,
-    });
+    try {
+      const res = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
 
-    setLoading(false);
+      if (res?.error) {
+        setError("Invalid email or password. Please try again.");
+        setLoading(false);
+        return;
+      }
 
-    if (res?.error) {
-      setError("Invalid credentials or role mismatch. Please try again.");
-      return;
+      if (rememberMe) {
+        localStorage.setItem("truckops_remember_email", email);
+      } else {
+        localStorage.removeItem("truckops_remember_email");
+      }
+
+      router.push("/dashboard");
+    } catch {
+      setError("Network error. Please try again.");
+      setLoading(false);
     }
-
-    // localStorage logic lives INSIDE handleSubmit, runs only on click (browser event)
-    if (rememberMe) {
-      localStorage.setItem("truckops_remember_email", email);
-    } else {
-      localStorage.removeItem("truckops_remember_email");
-    }
-
-    router.push("/dashboard");
   };
 
   return (
@@ -84,30 +70,11 @@ export default function LoginForm() {
           Sign in to your account
         </h2>
         <p className="text-sm text-muted-foreground">
-          Select your role and enter your credentials
+          Enter your credentials to access the platform
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="role">Role</Label>
-          <Select value={role} onValueChange={(value) => setRole(value || "")}>
-            <SelectTrigger id="role" className="w-full">
-              <div className="flex items-center gap-2">
-                <UserCircle className="h-4 w-4 text-muted-foreground" />
-                <SelectValue placeholder="Select your role" />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              {ROLES.map((r) => (
-                <SelectItem key={r.value} value={r.value}>
-                  {r.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
           <div className="relative">
@@ -179,8 +146,8 @@ export default function LoginForm() {
             "Login"
           )}
         </Button>
-      </form>
 
+      </form>
     </div>
   );
 }
