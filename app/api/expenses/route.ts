@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
       ORDER BY e.date DESC
       `
     )
-    const expenses = result.records.map((record) => record.get('expense'))
+    const expenses = result.records.map((record: any) => record.get('expense'))
     return NextResponse.json(expenses)
   } catch (error) {
     console.error('Error fetching expenses:', error)
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     const data = parsed.data
     const expenseId = `expense_${crypto.randomUUID()}`
 
-    const expenseResult = await session.executeWrite(async (tx) => {
+    const expenseResult = await session.executeWrite(async (tx: any) => {
       // 1. Verify vehicle exists
       const vehicleCheck = await tx.run(
         `

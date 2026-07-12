@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const drivers = result.records.map((record) => ({
+    const drivers = result.records.map((record: any) => ({
       ...record.get('driver'),
       alertType: record.get('alertType'),
       daysUntilExpiry: Math.ceil(
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     // ── Build Email HTML ──────────────────────────────────────────────────────
     const tableRows = drivers
       .map(
-        (d) => `
+        (d: any) => `
         <tr style="background:${d.alertType === 'EXPIRED' ? '#fef2f2' : '#fffbeb'}">
           <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">${d.name}</td>
           <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">${d.licenseNumber}</td>
@@ -117,14 +117,14 @@ export async function POST(request: NextRequest) {
       console.log('━━━ EMAIL PREVIEW (SMTP not configured) ━━━')
       console.log(`To: ${notifyEmail}`)
       console.log(`Subject: [TransitOps] License Expiry Alert — ${drivers.length} Driver(s) Require Attention`)
-      console.log(`Drivers: ${drivers.map((d) => `${d.name} (${d.licenseExpiryDate} — ${d.alertType})`).join(', ')}`)
+      console.log(`Drivers: ${drivers.map((d: any) => `${d.name} (${d.licenseExpiryDate} — ${d.alertType})`).join(', ')}`)
       console.log('━━━ Configure SMTP_HOST, SMTP_USER, SMTP_PASS in .env.local to send real emails ━━━')
 
       return NextResponse.json({
         sent: false,
         message: 'SMTP not configured — email preview logged to server console. Add SMTP_HOST, SMTP_USER, SMTP_PASS to .env.local to enable real email sending.',
         count: drivers.length,
-        drivers: drivers.map((d) => ({ name: d.name, licenseExpiryDate: d.licenseExpiryDate, alertType: d.alertType })),
+        drivers: drivers.map((d: any) => ({ name: d.name, licenseExpiryDate: d.licenseExpiryDate, alertType: d.alertType })),
       })
     }
 
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
       sent: true,
       message: `Expiry reminder sent to ${notifyEmail}`,
       count: drivers.length,
-      drivers: drivers.map((d) => ({ name: d.name, licenseExpiryDate: d.licenseExpiryDate, alertType: d.alertType })),
+      drivers: drivers.map((d: any) => ({ name: d.name, licenseExpiryDate: d.licenseExpiryDate, alertType: d.alertType })),
     })
   } catch (error) {
     console.error('Error sending expiry reminders:', error)

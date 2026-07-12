@@ -27,7 +27,7 @@ export async function POST(
     const data = parsed.data
 
     // Close the log and update vehicle status in a single transaction
-    const closeResult = await session.executeWrite(async (tx) => {
+    const closeResult = await session.executeWrite(async (tx: any) => {
       // 1. Check if maintenance log exists and is active
       const logCheck = await tx.run(
         `

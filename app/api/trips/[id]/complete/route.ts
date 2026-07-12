@@ -26,7 +26,7 @@ export async function POST(
 
     const data = parsed.data
 
-    const completeResult = await session.executeWrite(async (tx) => {
+    const completeResult = await session.executeWrite(async (tx: any) => {
       // 1. Fetch trip, verify it is Dispatched and fetch current vehicle odometer
       const checkQuery = await tx.run(
         `

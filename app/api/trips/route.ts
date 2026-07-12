@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       ORDER BY t.createdAt DESC
       `
     )
-    const trips = result.records.map((record) => record.get('trip'))
+    const trips = result.records.map((record: any) => record.get('trip'))
     return NextResponse.json(trips)
   } catch (error) {
     console.error('Error fetching trips:', error)
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     const tripId = `trip_${crypto.randomUUID()}`
     const createdAt = new Date().toISOString()
 
-    const tripResult = await session.executeWrite(async (tx) => {
+    const tripResult = await session.executeWrite(async (tx: any) => {
       // 1. Fetch vehicle capacity
       const vehicleCheck = await tx.run(
         `

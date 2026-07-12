@@ -8,7 +8,7 @@ export async function POST(
   const { id } = await params
   const session = getSession()
   try {
-    const cancelResult = await session.executeWrite(async (tx) => {
+    const cancelResult = await session.executeWrite(async (tx: any) => {
       // 1. Fetch trip, verify it is Dispatched
       const checkQuery = await tx.run(
         `

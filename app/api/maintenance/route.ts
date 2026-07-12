@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       ORDER BY m.startDate DESC
       `
     )
-    const logs = result.records.map((record) => record.get('log'))
+    const logs = result.records.map((record: any) => record.get('log'))
     return NextResponse.json(logs)
   } catch (error) {
     console.error('Error fetching maintenance logs:', error)
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     const logId = `maint_${crypto.randomUUID()}`
 
     // Wrap validation + mutations in a single write transaction to guarantee atomic updates
-    const logResult = await session.executeWrite(async (tx) => {
+    const logResult = await session.executeWrite(async (tx: any) => {
       // 1. Check if vehicle exists and its current status
       const vehicleCheck = await tx.run(
         `

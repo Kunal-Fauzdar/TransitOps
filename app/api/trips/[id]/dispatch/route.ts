@@ -8,7 +8,7 @@ export async function POST(
   const { id } = await params
   const session = getSession()
   try {
-    const dispatchResult = await session.executeWrite(async (tx) => {
+    const dispatchResult = await session.executeWrite(async (tx: any) => {
       // 1. Fetch trip and status of its vehicle & driver
       const checkQuery = await tx.run(
         `

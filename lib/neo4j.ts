@@ -6,7 +6,7 @@ const password = process.env.NEO4J_PASSWORD || 'password'
 
 // To prevent creating multiple drivers on hot-reload in Next.js development
 const globalForNeo4j = globalThis as unknown as {
-  neo4jDriver: typeof neo4j.Driver | undefined
+  neo4jDriver: any
 }
 
 export const driver = globalForNeo4j.neo4jDriver ?? neo4j.driver(uri, neo4j.auth.basic(user, password))
